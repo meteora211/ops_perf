@@ -4,6 +4,24 @@
 #include <iostream>
 #include <memory>
 #include <type_traits>
+#include <chrono>
+
+class Timer {
+public:
+  Timer() : timer_(std::chrono::high_resolution_clock::now()) {}
+  double tok() {
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - timer_;
+    return diff.count();
+  }
+
+private:
+  std::chrono::time_point<std::chrono::high_resolution_clock> timer_;
+};
+
+double get_matmul_FLOPs(int M, int K, int N);
+
+double get_matmul_GFLOPS(int M, int K, int N, double time);
 
 template<typename T>
 void fullfill_rand(std::shared_ptr<T> input, int nelm) {
@@ -26,19 +44,4 @@ void print_matrix(std::shared_ptr<T> input, int nelm) {
     std::cout << input[i] << " ";
   }
   std::cout << std::endl;
-}
-
-template<typename T>
-void matmul_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_ptr<T> res, int M, int N, int K) {
-  // lhs(M*K) * rhs(K*N) = res(M*N)
-  for (int i = 0; i < M; ++i) {
-    for (int j = 0; j < N; ++j) {
-      std::remove_extent_t<T> sum = 0;
-      for (int k = 0; k < K; ++k) {
-        // sum += lhs[i, k] * rhs[k, j];
-        sum += lhs[i * K + k] * rhs[k * N + j];
-      }
-      res[i * N + j] = sum;
-    }
-  }
 }

@@ -1,5 +1,5 @@
 #include <cuda_runtime.h>
-#include "gpu_optimizer.h"
+#include "gpu_matmul.h"
 #include <cublas_v2.h>
 #define OFFSET(row, col, ld) ((row) * (ld) + (col))
 #define FLOAT4(pointer) (reinterpret_cast<float4*>(&(pointer))[0])

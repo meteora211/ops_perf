@@ -1,15 +1,3 @@
-# add_subdirectory(cpu)
-# add_subdirectory(gpu)
-file(GLOB MATMUL_UTILS "*.cpp")
-file(GLOB CUDA_SRC "*.cu")
-add_library(utils SHARED STATIC ${MATMUL_UTILS} ${CUDA_SRC})
-target_link_libraries(utils fmt cublas)
-set_target_properties(utils
-                      PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-install(TARGETS utils LIBRARY DESTINATION ${MATMUL_INSTALL_LIB_DIR})
-
+add_subdirectory(utils)
+add_subdirectory(ops)
 add_subdirectory(benchmark)
-# set(SOURCE_FILES baseline.cc)
-# add_executable(baseline ${SOURCE_FILES})
-# target_link_libraries(baseline rand)
-# install(TARGETS baseline DESTINATION ${MATMUL_INSTALL_BIN_DIR})

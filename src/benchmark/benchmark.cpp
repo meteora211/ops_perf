@@ -1,6 +1,6 @@
 #include "baseline.h"
-#include "cpu_optimizer.h"
-#include "gpu_optimizer.h"
+#include "cpu_matmul.h"
+#include "gpu_matmul.h"
 #include "utils.h"
 #include <ranges>
 #include <functional>
@@ -39,22 +39,31 @@ int main() {
     return std::pair(i, gflops);
   };
 
-  auto run = [&]<typename F>(F fn, const std::string& name){
-    for (const auto&& [i, gflops] : std::views::iota(0, 1000) | std::views::filter(step) | std::views::transform([&](int i){ return benchmark(fn, i); })) {
-      std::cout << fmt::format("size: {}, {} gflops: {}.\n", i, name, gflops);
+  auto run = [&]<typename F>(F fn, const std::string& name, int size = 0){
+    if (size <= 0) {
+      for (const auto&& [i, gflops] : std::views::iota(0, 1000) | std::views::filter(step) | std::views::transform([&](int i){ return benchmark(fn, i); })) {
+        std::cout << fmt::format("size: {}, {} gflops: {}.\n", i, name, gflops);
+      }
+    } else {
+      std::cout << "using size: " << size << std::endl;
+      // warm up
+      for (int i = 0; i < 10; ++i) benchmark(fn, size);
+      auto [tmp, gflops] = benchmark(fn, size);
+      std::cout << fmt::format("size: {}, {} gflops: {}.\n", size, name, gflops);
     }
   };
 
-  run(matmul_baseline<float[]>, "baseline");
-  run(matmul_transpose<float[]>, "tranpose");
-  run(matmul_block<float[]>, "block");
-  run(matmul_unroll, "unroll");
-  run(matmul_block_unroll, "block unroll");
-  run(matmul_sse, "SSE");
-  run(matmul_cublas, "cublas");
-  run(matmul_cuda_naive, "cuda naive");
-  run(matmul_cuda_transpose, "cuda transpose");
-  run(matmul_cuda_block, "cuda block");
+  int size = 1000;
+  // run(matmul_baseline<float[]>, "baseline", size);
+  // run(matmul_transpose<float[]>, "tranpose", size);
+  // run(matmul_block<float[]>, "block", size);
+  // run(matmul_unroll, "unroll", size);
+  // run(matmul_block_unroll, "block unroll", size);
+  // run(matmul_sse, "SSE", size);
+  run(matmul_cublas, "cublas", size);
+  run(matmul_cuda_naive, "cuda naive", size);
+  run(matmul_cuda_transpose, "cuda transpose", size);
+  run(matmul_cuda_block, "cuda block", size);
 
   std::cout << "BENCHMARK END" << std::endl;
 }
