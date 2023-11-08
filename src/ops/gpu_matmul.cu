@@ -1,10 +1,8 @@
-#include <cuda_runtime.h>
 #include "gpu_matmul.h"
+#include <cuda_runtime.h>
 #include <cublas_v2.h>
-#define OFFSET(row, col, ld) ((row) * (ld) + (col))
-#define FLOAT4(pointer) (reinterpret_cast<float4*>(&(pointer))[0])
 
-double cuda_executor(void(*cuda_func)(float *, float *, float *, const int, const int, const int),
+double matmul_cuda_executor(void(*cuda_func)(float *, float *, float *, const int, const int, const int),
                    std::shared_ptr<float[]> lhs,
                    std::shared_ptr<float[]> rhs,
                    std::shared_ptr<float[]> res,
@@ -35,7 +33,7 @@ double cuda_executor(void(*cuda_func)(float *, float *, float *, const int, cons
 
   float msec;
   cudaEventElapsedTime(&msec, start, end);
-  auto gflops = get_matmul_GFLOPS(M, N, K,msec/1000);
+  // auto gflops = get_matmul_GFLOPS(M, N, K,msec/1000);
 
   cudaMemcpy(res.get(), res_device, res_size, cudaMemcpyDeviceToHost);
 
@@ -43,9 +41,8 @@ double cuda_executor(void(*cuda_func)(float *, float *, float *, const int, cons
   cudaFree(lhs_device);
   cudaFree(rhs_device);
   cudaFree(res_device);
-  return gflops;
+  return msec;
 }
-
 
 __global__ void cuda_basic(
     float* lhs, float* rhs, float* res,
@@ -168,7 +165,7 @@ double matmul_cublas(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs,
 
   float msec;
   cudaEventElapsedTime(&msec, start, end);
-  auto gflops = get_matmul_GFLOPS(M, N, K,msec/1000);
+  // auto gflops = get_matmul_GFLOPS(M, N, K,msec/1000);
 
   cudaMemcpy(res.get(), res_device, res_size, cudaMemcpyDeviceToHost);
 
@@ -176,7 +173,7 @@ double matmul_cublas(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs,
   cudaFree(lhs_device);
   cudaFree(rhs_device);
   cudaFree(res_device);
-  return gflops;
+  return msec;
 }
 
 double matmul_cuda_naive(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
@@ -185,7 +182,7 @@ double matmul_cuda_naive(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> 
 
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
   dim3 block(BN, BM);
-  return cuda_executor(cuda_basic, rhs, lhs, res, M, N, K, grid, block);
+  return matmul_cuda_executor(cuda_basic, rhs, lhs, res, M, N, K, grid, block);
 }
 
 double matmul_cuda_transpose(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
@@ -194,7 +191,7 @@ double matmul_cuda_transpose(std::shared_ptr<float[]> lhs, std::shared_ptr<float
 
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
   dim3 block(BN, BM);
-  return cuda_executor(cuda_transpose, rhs, lhs, res, M, N, K, grid, block);
+  return matmul_cuda_executor(cuda_transpose, rhs, lhs, res, M, N, K, grid, block);
 }
 
 double matmul_cuda_block(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
@@ -203,5 +200,5 @@ double matmul_cuda_block(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> 
 
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
   dim3 block(BN, BM);
-  return cuda_executor(cuda_block, rhs, lhs, res, M, N, K, grid, block);
+  return matmul_cuda_executor(cuda_block, rhs, lhs, res, M, N, K, grid, block);
 }

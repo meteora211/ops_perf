@@ -19,3 +19,12 @@ void matmul_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared
     }
   }
 }
+
+template<typename T>
+void transpose_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> res, int M, int N) {
+  for (int i = 0; i < M; ++i) {
+    for (int j = 0; j < N; ++j) {
+      res[i * M + j] = lhs[j * N + i];
+    }
+  }
+}
