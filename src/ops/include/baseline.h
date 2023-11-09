@@ -28,3 +28,11 @@ void transpose_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> res, int M, i
     }
   }
 }
+
+template<typename T>
+void reduce_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> res, int N) {
+  res[0] = 0;
+  for (int i = 0; i < N; ++i) {
+    res[0] += lhs[i];
+  }
+}

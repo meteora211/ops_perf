@@ -1,2 +1,2 @@
-cmake -S ./ -B `pwd`/build
-cmake --build `pwd`/build --target install --config Release
+cmake -S ./ -B `pwd`/build -DCMAKE_BUILD_TYPE=Debug
+cmake --build `pwd`/build --target install --config Debug

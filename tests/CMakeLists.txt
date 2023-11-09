@@ -3,6 +3,7 @@ project(tests)
 
 # GoogleTest requires at least C++14
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
 
 include(FetchContent)
 FetchContent_Declare(
