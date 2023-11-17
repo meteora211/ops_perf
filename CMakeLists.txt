@@ -17,6 +17,8 @@ set(OPS_INSTALL_LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
 
 include_directories(${OPS_INSTALL_INCLUDE_DIR})
 include_directories(${OPS_HEADERS_DIR})
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+include(CompileCUDA)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -29,4 +31,5 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 
 add_subdirectory(src)
+add_subdirectory(temp_source)
 # add_subdirectory(tests)

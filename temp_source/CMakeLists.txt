@@ -1,0 +1,2 @@
+file(GLOB TEMP_CUDA_OPS "*.cu")
+CompileCUDA(${TEMP_CUDA_OPS})
