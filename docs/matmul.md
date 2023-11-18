@@ -1,3 +1,28 @@
+### naive
+
+```c
+__global__ void matmulNaive(float* A, float* B, float* C, int M, int N, int K) {
+  int i = threadIdx.y + blockIdx.y * blockDim.y;
+  int j = threadIdx.x + blockIdx.x * blockDim.x;
+  
+  if (i < M && j < N) {
+    float sum = 0;
+    for (int k = 0; k < K; ++k) {
+      sum += A[i * M + k] * B[k * N + j];
+    }
+    C[i * M + j] = sum;
+  }
+}
+```
+
+![image-20231118165520285](./image-20231118165520285.png)
+
+![image-20231118165449771](./image-20231118165449771.png)
+
+由于全部是global memory访问，所以并没有bank conflict
+
+![image-20231118165600091](./image-20231118165600091.png)
+
 ### shared memory
 
 ```c
@@ -29,7 +54,7 @@ __global__ void matmulShared(float* A, float* B, float* C, int M, int N, int K) 
 
 ![image-20231118160834842](./image-20231118160834842.png)
 
-这里存在的性能问题是bank conflict
+这里存在的性能问题是bank conflict太多，虽然使用了shared memory，但性能反而下降更多。
 
 ![image-20231118161811746](./image-20231118161811746.png)
 
