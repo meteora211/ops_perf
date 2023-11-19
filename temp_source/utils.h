@@ -48,7 +48,7 @@ bool matrixChecker(float* res, float* expect, int M, int N) {
       double rel_err = abs_err / abs_val / dot_length;
 
       if (rel_err > eps) {
-          std::cout << "ERROR in: " << i << " , " << j << std::endl;
+          std::cout << "ERROR in: " << i << " , " << j << " Value: " << res[index] << " " << expect[index] << std::endl;
           correct = false;
       }
     }

@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-#define BLOCK_SIZE 16
+#define BLOCK_SIZE 32
 
 void matmulBase(float* lhs, float* rhs, float* res, int M, int N, int K) {
   // lhs(M*K) * rhs(K*N) = res(M*N)

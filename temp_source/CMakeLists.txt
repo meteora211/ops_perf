@@ -1,2 +1,2 @@
-file(GLOB TEMP_CUDA_OPS "*.cu")
-CompileCUDA(${TEMP_CUDA_OPS})
+file(GLOB SOURCE_FILES "*.cu")
+CompileCUDA("${SOURCE_FILES}")
