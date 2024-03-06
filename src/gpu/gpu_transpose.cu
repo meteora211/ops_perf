@@ -1,6 +1,9 @@
-#include "gpu_transpose.h"
+// #include "gpu_transpose.h"
+#include "utils.h"
+#include "baseline.h"
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+#define OFFSET(a, b, c) a*c+b
 
 double transpose_cuda_executor(void(*cuda_func)(float *, float *, const int, const int),
                    std::shared_ptr<float[]> lhs,

@@ -1,7 +1,7 @@
 #pragma once
 #include "utils.h"
 #include "baseline.h"
-#include "gpu_common.h"
+// #include "gpu_common.h"
 
 // Some useful repo:
 // https://github.com/Liu-xiandong/How_to_optimize_in_GPU

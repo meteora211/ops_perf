@@ -1,8 +1,8 @@
 #include "baseline.h"
 #include "cpu_matmul.h"
 #include "gpu_matmul.h"
-#include "gpu_reduce.h"
-#include "gpu_transpose.h"
+// #include "gpu_reduce.h"
+// #include "gpu_transpose.h"
 #include "utils.h"
 #include <ranges>
 #include <functional>

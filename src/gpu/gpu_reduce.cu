@@ -1,4 +1,6 @@
-#include "gpu_reduce.h"
+// #include "gpu_reduce.h"
+#include "utils.h"
+#include "baseline.h"
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 

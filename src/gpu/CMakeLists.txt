@@ -1,12 +1,9 @@
-add_subdirectory(utils)
-# add_subdirectory(benchmark)
-# add_subdirectory(ops)
-file(GLOB CPU_OPS "cpu/*.cc")
-file(GLOB CUDA_OPS "gpu/*.cu")
+file(GLOB CPU_OPS "*.cc")
+file(GLOB CUDA_OPS "*.cu")
 add_library(ops SHARED ${CPU_OPS} ${CUDA_OPS})
 target_link_libraries(ops fmt cublas utils)
 
-target_include_directories(ops PUBLIC "utils")
+target_include_directories(ops PUBLIC "include")
 # "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
 # "$<INSTALL_INTERFACE:${OPS_INSTALL_INCLUDE_DIR}>")
 
