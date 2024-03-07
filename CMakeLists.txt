@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(matmul)
+project(ops_perf)
 
 enable_language(CUDA)
 include(CheckLanguage)
@@ -31,5 +31,5 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 
 add_subdirectory(src)
-add_subdirectory(temp_source)
-# add_subdirectory(tests)
+# add_subdirectory(temp_source)
+add_subdirectory(tests)

@@ -6,7 +6,7 @@
 #include <type_traits>
 
 template<typename T>
-void matmul_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_ptr<T> res, int M, int N, int K) {
+void matmul_baseline(T* lhs, T* rhs, T* res, int M, int N, int K) {
   // lhs(M*K) * rhs(K*N) = res(M*N)
   for (int i = 0; i < M; ++i) {
     for (int j = 0; j < N; ++j) {
@@ -21,7 +21,7 @@ void matmul_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared
 }
 
 template<typename T>
-void transpose_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> res, int M, int N) {
+void transpose_baseline(T* lhs, T* res, int M, int N) {
   for (int i = 0; i < M; ++i) {
     for (int j = 0; j < N; ++j) {
       res[i * M + j] = lhs[j * N + i];
@@ -30,7 +30,7 @@ void transpose_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> res, int M, i
 }
 
 template<typename T>
-void reduce_baseline(std::shared_ptr<T> lhs, std::shared_ptr<T> res, int N) {
+void reduce_baseline(T* lhs, T* res, int N) {
   res[0] = 0;
   for (int i = 0; i < N; ++i) {
     res[0] += lhs[i];

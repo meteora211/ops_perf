@@ -1,7 +1,7 @@
 #include "utils.h"
 #include "cpu_matmul.h"
 
-void matmul_unroll(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
+void matmul_unroll(float* lhs, float* rhs, float* res, int M, int N, int K) {
   float tmp00, tmp01, tmp02, tmp03;
   float tmp10, tmp11, tmp12, tmp13;
   float tmp20, tmp21, tmp22, tmp23;
@@ -79,14 +79,14 @@ void matmul_unroll(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, s
   }
 }
 
-void matmul_block_unroll(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
+void matmul_block_unroll(float* lhs, float* rhs, float* res, int M, int N, int K) {
   float tmp00, tmp01, tmp02, tmp03;
   float tmp10, tmp11, tmp12, tmp13;
   float tmp20, tmp21, tmp22, tmp23;
   float tmp30, tmp31, tmp32, tmp33;
   constexpr size_t block_size = 8;
   auto trans_rhs = std::shared_ptr<float[]>(new float[N*K]);
-  transpose(rhs, trans_rhs, K, N);
+  transpose(rhs, trans_rhs.get(), K, N);
   // do not clear res for pure speed test
   // fullfill_num(res, M*N, 0);
 
@@ -169,7 +169,7 @@ void matmul_block_unroll(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> 
   }
 }
 
-void matmul_sse(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
+void matmul_sse(float* lhs, float* rhs, float* res, int M, int N, int K) {
   __m128 tmp0, tmp1, tmp2, tmp3;
   __m128 lhs_v, rhs_v;
 

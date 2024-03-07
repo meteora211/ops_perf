@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "baseline.h"
-#include "cpu_optimizer.h"
-#include "gpu_optimizer.h"
+#include "cpu_matmul.h"
+#include "gpu_matmul.h"
 #include "utils.h"
 
 TEST(TestUtils, TestBaseLine) {
@@ -16,7 +16,7 @@ TEST(TestUtils, TestBaseLine) {
   fullfill_num(rhs, K*N, 2);
 
   Timer t;
-  matmul_baseline(lhs, rhs, res, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), res.get(), M, N, K);
   double dur = t.tok();
   auto gflops = get_matmul_GFLOPS(M, K, N, dur);
 
@@ -37,8 +37,8 @@ TEST(TestUtils, TestTranspose) {
   fullfill_rand(lhs, M*K);
   fullfill_rand(rhs, K*N);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
-  matmul_transpose(lhs, rhs, res, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
+  matmul_transpose(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   for (int i = 0; i < M*N; ++i) {
     EXPECT_TRUE(res[i] == golden[i]);
@@ -58,8 +58,8 @@ TEST(TestUtils, TestBlock) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
-  matmul_block(lhs, rhs, res, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
+  matmul_block(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(res, M*N); */
   /* print_matrix(golden, M*N); */
@@ -81,8 +81,8 @@ TEST(TestUtils, TestUnroll) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
-  matmul_unroll(lhs, rhs, res, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
+  matmul_unroll(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(res, M*N); */
   /* print_matrix(golden, M*N); */
@@ -104,8 +104,8 @@ TEST(TestUtils, TestBlockUnroll) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
-  matmul_block_unroll(lhs, rhs, res, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
+  matmul_block_unroll(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(res, M*N); */
   /* print_matrix(golden, M*N); */
@@ -127,8 +127,8 @@ TEST(TestUtils, TestSSE) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
-  matmul_sse(lhs, rhs, res, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
+  matmul_sse(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(res, M*N); */
   /* print_matrix(golden, M*N); */
@@ -173,7 +173,7 @@ TEST(TestUtils, TestCUBLAS) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
   matmul_cublas(lhs, rhs, res, M, N, K);
 
   /* print_matrix(res, M*N); */
@@ -196,7 +196,7 @@ TEST(TestUtils, TestCUBasic) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
   matmul_cuda_naive(lhs, rhs, res, M, N, K);
 
   /* print_matrix(res, M*N); */
@@ -219,7 +219,7 @@ TEST(TestUtils, TestCUTranspose) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
   matmul_cuda_transpose(lhs, rhs, res, M, N, K);
 
   /* print_matrix(res, M*N); */
@@ -242,7 +242,7 @@ TEST(TestUtils, TestCUBlock) {
   fullfill_rand(rhs, K*N);
   fullfill_num(res, M*N, 0);
 
-  matmul_baseline(lhs, rhs, golden, M, N, K);
+  matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
   matmul_cuda_block(lhs, rhs, res, M, N, K);
 
   /* print_matrix(lhs, M*K); */

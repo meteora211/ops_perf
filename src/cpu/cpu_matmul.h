@@ -7,19 +7,19 @@
 #include <fmaintrin.h>
 
 template<typename T>
-void transpose(std::shared_ptr<T> src, std::shared_ptr<T> dst, int row, int col);
+void transpose(T* src, T* dst, int row, int col);
 
 template<typename T>
-void matmul_transpose(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_ptr<T> res, int M, int N, int K);
+void matmul_transpose(T* lhs, T* rhs, T* res, int M, int N, int K);
 
 template<typename T>
-void matmul_block(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_ptr<T> res, int M, int N, int K);
+void matmul_block(T* lhs, T* rhs, T* res, int M, int N, int K);
 
-void matmul_unroll(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K);
+void matmul_unroll(float* lhs, float* rhs, float* res, int M, int N, int K);
 
-void matmul_block_unroll(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K);
+void matmul_block_unroll(float* lhs, float* rhs, float* res, int M, int N, int K);
 
-void matmul_sse(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K);
+void matmul_sse(float* lhs, float* rhs, float* res, int M, int N, int K);
 
 // TODO: unfortunately my machine doesn't support avx512
 /* void matmul_avx512(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K); */
@@ -28,7 +28,7 @@ void matmul_sse(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std:
 // for better transpose algorithm, see:
 // https://stackoverflow.com/questions/16737298/what-is-the-fastest-way-to-transpose-a-matrix-in-c
 template<typename T>
-void transpose(std::shared_ptr<T> src, std::shared_ptr<T> dst, int row, int col) {
+void transpose(T* src, T* dst, int row, int col) {
   for (int i = 0; i < row * col; ++i) {
     int row_idx = i / row;
     int col_idx = i % row;
@@ -38,16 +38,16 @@ void transpose(std::shared_ptr<T> src, std::shared_ptr<T> dst, int row, int col)
 }
 
 template<typename T>
-void matmul_transpose(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_ptr<T> res, int M, int N, int K) {
+void matmul_transpose(T* lhs, T* rhs, T* res, int M, int N, int K) {
   // lhs(M*K) * rhs(K*N) = res(M*N)
   auto trans_rhs = std::shared_ptr<T>(new std::remove_extent_t<T>[N*K]);
-  transpose(rhs, trans_rhs, K, N);
+  transpose(rhs, trans_rhs.get(), K, N);
   for (int i = 0; i < M; ++i) {
     for (int j = 0; j < N; ++j) {
       std::remove_extent_t<T> sum = 0;
       for (int k = 0; k < K; ++k) {
         // sum += lhs[i, k] * rhs[k, j];
-        sum += lhs[i * K + k] * trans_rhs[j * K + k];
+        sum += lhs[i * K + k] * trans_rhs.get()[j * K + k];
       }
       res[i * N + j] = sum;
     }
@@ -55,7 +55,7 @@ void matmul_transpose(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::share
 }
 
 template<typename T>
-void matmul_block(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_ptr<T> res, int M, int N, int K) {
+void matmul_block(T* lhs, T* rhs, T* res, int M, int N, int K) {
   // lhs(M*K) * rhs(K*N) = res(M*N)
 #ifdef __cpp_lib_hardware_interference_size
   // block_size = 64 (a cache line size) / 4 (sizeof(float)) / 2 (block for rhs and lhs) = 8
@@ -64,7 +64,7 @@ void matmul_block(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_pt
   constexpr size_t block_size = 8;
 #endif
   auto trans_rhs = std::shared_ptr<T>(new std::remove_extent_t<T>[N*K]);
-  transpose(rhs, trans_rhs, K, N);
+  transpose(rhs, trans_rhs.get(), K, N);
   // do not clear res for pure speed test
   // fullfill_num(res, M*N, 0);
 
@@ -84,7 +84,7 @@ void matmul_block(std::shared_ptr<T> lhs, std::shared_ptr<T> rhs, std::shared_pt
                 // sum += lhs[lhs_idx] * rhs[rhs_idx];
                 auto lhs_idx = i_idx * K + k_idx;
                 auto rhs_idx = j_idx * K + k_idx;
-                sum += lhs[lhs_idx] * trans_rhs[rhs_idx];
+                sum += lhs[lhs_idx] * trans_rhs.get()[rhs_idx];
               }
             }
             // res_b[bi * block_size + bj] = sum;

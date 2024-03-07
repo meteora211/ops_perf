@@ -1,10 +1,3 @@
-cmake_minimum_required(VERSION 3.2)
-project(tests)
-
-# GoogleTest requires at least C++14
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
-
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -22,12 +15,15 @@ add_executable(
   baseline_test
   baseline_test.cc
 )
-target_include_directories(baseline_test PRIVATE MATMUL_HEADERS_DIR)
+
+
+target_include_directories(baseline_test PRIVATE ${CPU_OPS_INCLUDE} ${GPU_OPS_INCLUDE} ${OPS_UTILS_INCLUDE})
+
 target_link_libraries(
   baseline_test
-  PRIVATE
-  GTest::gtest_main
+  ops
   utils
+  GTest::gtest_main
 )
 
 include(GoogleTest)
