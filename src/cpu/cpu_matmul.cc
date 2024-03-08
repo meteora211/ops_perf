@@ -1,7 +1,7 @@
 #include "utils.h"
 #include "cpu_matmul.h"
 
-void matmul_unroll(float* lhs, float* rhs, float* res, int M, int N, int K) {
+void matmul_unroll(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
   float tmp00, tmp01, tmp02, tmp03;
   float tmp10, tmp11, tmp12, tmp13;
   float tmp20, tmp21, tmp22, tmp23;
@@ -79,7 +79,7 @@ void matmul_unroll(float* lhs, float* rhs, float* res, int M, int N, int K) {
   }
 }
 
-void matmul_block_unroll(float* lhs, float* rhs, float* res, int M, int N, int K) {
+void matmul_block_unroll(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
   float tmp00, tmp01, tmp02, tmp03;
   float tmp10, tmp11, tmp12, tmp13;
   float tmp20, tmp21, tmp22, tmp23;
@@ -169,7 +169,7 @@ void matmul_block_unroll(float* lhs, float* rhs, float* res, int M, int N, int K
   }
 }
 
-void matmul_sse(float* lhs, float* rhs, float* res, int M, int N, int K) {
+void matmul_sse(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
   __m128 tmp0, tmp1, tmp2, tmp3;
   __m128 lhs_v, rhs_v;
 

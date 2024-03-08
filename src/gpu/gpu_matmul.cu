@@ -2,10 +2,10 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 
-double matmul_cuda_executor(void(*cuda_func)(float *, float *, float *, const int, const int, const int),
-                   std::shared_ptr<float[]> lhs,
-                   std::shared_ptr<float[]> rhs,
-                   std::shared_ptr<float[]> res,
+double matmul_cuda_executor(void(*cuda_func)(const float *, const float *, float *, const int, const int, const int),
+                   const float* lhs,
+                   const float* rhs,
+                   float* res,
                    int M, int N, int K,
                    dim3 grid,
                    dim3 block) {
@@ -18,9 +18,9 @@ double matmul_cuda_executor(void(*cuda_func)(float *, float *, float *, const in
   cudaMalloc(&rhs_device, rhs_size);
   cudaMalloc(&res_device, res_size);
 
-  cudaMemcpy(lhs_device, lhs.get(), lhs_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(rhs_device, rhs.get(), rhs_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(res_device, res.get(), res_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(lhs_device, lhs, lhs_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(rhs_device, rhs, rhs_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(res_device, res, res_size, cudaMemcpyHostToDevice);
 
   cudaEvent_t start, end;
   cudaEventCreate(&start);
@@ -35,7 +35,7 @@ double matmul_cuda_executor(void(*cuda_func)(float *, float *, float *, const in
   cudaEventElapsedTime(&msec, start, end);
   // auto gflops = get_matmul_GFLOPS(M, N, K,msec/1000);
 
-  cudaMemcpy(res.get(), res_device, res_size, cudaMemcpyDeviceToHost);
+  cudaMemcpy(res, res_device, res_size, cudaMemcpyDeviceToHost);
 
 
   cudaFree(lhs_device);
@@ -45,7 +45,7 @@ double matmul_cuda_executor(void(*cuda_func)(float *, float *, float *, const in
 }
 
 __global__ void cuda_basic(
-    float* lhs, float* rhs, float* res,
+    const float* lhs, const float* rhs, float* res,
     const int M, const int N, const int K) {
   int i = blockIdx.y * blockDim.y + threadIdx.y;
   int j = blockIdx.x * blockDim.x + threadIdx.x;
@@ -66,7 +66,7 @@ __global__ void cuda_basic(
 // - When single warp access consecutive memory locations, do block read or write
 // - When single warp access separated memory locations, requires gather(read) or scatter(write)
 __global__ void cuda_transpose(
-    float* lhs, float* rhs, float* res,
+    const float* lhs, const float* rhs, float* res,
   const int M, const int N, const int K) {
   // i and j(matrix index for result) is mapped to block in inverted way.
   // Note that it doesn't influence the correctness of result but only the perfermance.
@@ -85,7 +85,7 @@ __global__ void cuda_transpose(
   }
 }
 
-__global__ void cuda_block(float* lhs, float* rhs, float* res,
+__global__ void cuda_block(const float* lhs, const float* rhs, float* res,
     const int M, const int N, const int K) {
   int i = blockIdx.y * blockDim.y + threadIdx.y;
   int j = blockIdx.x * blockDim.x + threadIdx.x;
@@ -124,7 +124,7 @@ __global__ void cuda_block(float* lhs, float* rhs, float* res,
   }
 }
 
-double matmul_cublas(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
+double matmul_cublas(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
   size_t lhs_size = M * K * sizeof(float);
   size_t rhs_size = K * N * sizeof(float);
   size_t res_size = M * N * sizeof(float);
@@ -134,9 +134,9 @@ double matmul_cublas(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs,
   cudaMalloc(&rhs_device, rhs_size);
   cudaMalloc(&res_device, res_size);
 
-  cudaMemcpy(lhs_device, lhs.get(), lhs_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(rhs_device, rhs.get(), rhs_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(res_device, res.get(), res_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(lhs_device, lhs, lhs_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(rhs_device, rhs, rhs_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(res_device, res, res_size, cudaMemcpyHostToDevice);
 
   cublasHandle_t cublas_handle;
   cublasCreate(&cublas_handle);
@@ -167,7 +167,7 @@ double matmul_cublas(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs,
   cudaEventElapsedTime(&msec, start, end);
   // auto gflops = get_matmul_GFLOPS(M, N, K,msec/1000);
 
-  cudaMemcpy(res.get(), res_device, res_size, cudaMemcpyDeviceToHost);
+  cudaMemcpy(res, res_device, res_size, cudaMemcpyDeviceToHost);
 
 
   cudaFree(lhs_device);
@@ -176,7 +176,7 @@ double matmul_cublas(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs,
   return msec;
 }
 
-double matmul_cuda_naive(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
+double matmul_cuda_naive(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
   const int BM = 32;
   const int BN = 32;
 
@@ -185,7 +185,7 @@ double matmul_cuda_naive(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> 
   return matmul_cuda_executor(cuda_basic, rhs, lhs, res, M, N, K, grid, block);
 }
 
-double matmul_cuda_transpose(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
+double matmul_cuda_transpose(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
   const int BM = 32;
   const int BN = 32;
 
@@ -194,7 +194,7 @@ double matmul_cuda_transpose(std::shared_ptr<float[]> lhs, std::shared_ptr<float
   return matmul_cuda_executor(cuda_transpose, rhs, lhs, res, M, N, K, grid, block);
 }
 
-double matmul_cuda_block(std::shared_ptr<float[]> lhs, std::shared_ptr<float[]> rhs, std::shared_ptr<float[]> res, int M, int N, int K) {
+double matmul_cuda_block(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
   const int BM = 32;
   const int BN = 32;
 

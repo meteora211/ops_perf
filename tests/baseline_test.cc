@@ -174,7 +174,7 @@ TEST(TestUtils, TestCUBLAS) {
   fullfill_num(res, M*N, 0);
 
   matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
-  matmul_cublas(lhs, rhs, res, M, N, K);
+  matmul_cublas(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(res, M*N); */
   /* print_matrix(golden, M*N); */
@@ -197,7 +197,7 @@ TEST(TestUtils, TestCUBasic) {
   fullfill_num(res, M*N, 0);
 
   matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
-  matmul_cuda_naive(lhs, rhs, res, M, N, K);
+  matmul_cuda_naive(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(res, M*N); */
   /* print_matrix(golden, M*N); */
@@ -220,7 +220,7 @@ TEST(TestUtils, TestCUTranspose) {
   fullfill_num(res, M*N, 0);
 
   matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
-  matmul_cuda_transpose(lhs, rhs, res, M, N, K);
+  matmul_cuda_transpose(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(res, M*N); */
   /* print_matrix(golden, M*N); */
@@ -243,7 +243,7 @@ TEST(TestUtils, TestCUBlock) {
   fullfill_num(res, M*N, 0);
 
   matmul_baseline(lhs.get(), rhs.get(), golden.get(), M, N, K);
-  matmul_cuda_block(lhs, rhs, res, M, N, K);
+  matmul_cuda_block(lhs.get(), rhs.get(), res.get(), M, N, K);
 
   /* print_matrix(lhs, M*K); */
   /* print_matrix(rhs, K*N); */
