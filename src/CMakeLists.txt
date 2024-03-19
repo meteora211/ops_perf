@@ -1,6 +1,12 @@
 add_subdirectory(utils)
 # add_subdirectory(benchmark)
 # add_subdirectory(ops)
+
+file(GLOB CORE_HEADERS "core/*.h")
+file(GLOB CORE_SRCS "core/*.cc")
+add_library(core SHARED ${CORE_SRCS})
+target_include_directories(core PUBLIC "core")
+
 file(GLOB CPU_OPS "cpu/*.cc")
 file(GLOB CUDA_OPS "gpu/*.cu")
 
