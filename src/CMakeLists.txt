@@ -1,36 +1,37 @@
 add_subdirectory(utils)
 # add_subdirectory(benchmark)
-# add_subdirectory(ops)
 
-file(GLOB CORE_HEADERS "core/*.h")
-file(GLOB CORE_SRCS "core/*.cc")
-add_library(core SHARED ${CORE_SRCS})
+file(GLOB MET_CORE_HEADERS "core/*.h")
+file(GLOB MET_CORE_SRCS "core/*.cc")
+add_library(core SHARED ${MET_CORE_SRCS})
 target_include_directories(core PUBLIC "core")
 
-file(GLOB CPU_OPS "cpu/*.cc")
-file(GLOB CUDA_OPS "gpu/*.cu")
+file(GLOB CPU_KERNELS "cpu/*.cc")
+file(GLOB CUDA_KERNELS "gpu/*.cu")
 
-set(CPU_OPS_INCLUDE)
-set(GPU_OPS_INCLUDE)
-set(OPS_UTILS_INCLUDE)
+set(MET_CPU_KERNEL_INCLUDE)
+set(MET_GPU_KERNEL_INCLUDE)
+set(MET_UTILS_INCLUDE)
+set(MET_CORE_INCLUDE)
 
-list(APPEND CPU_OPS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/cpu)
-list(APPEND GPU_OPS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/gpu)
-list(APPEND OPS_UTILS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/utils)
+list(APPEND MET_CPU_KERNEL_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/cpu)
+list(APPEND MET_GPU_KERNEL_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/gpu)
+list(APPEND MET_UTILS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/utils)
+list(APPEND MET_CORE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/core)
 
-add_library(ops SHARED ${CPU_OPS} ${CUDA_OPS})
-# target_link_libraries(ops fmt ${CUDA_CUBLAS_LIBRARIES} utils)
-target_link_libraries(ops PRIVATE fmt cudnn cublas utils)
+add_library(kernels SHARED ${CPU_KERNELS} ${CUDA_KERNELS})
+target_link_libraries(kernels PRIVATE fmt cudnn cublas utils core)
 
-target_include_directories(ops PUBLIC "utils")
+target_include_directories(kernels PUBLIC ${MET_UTILS_INCLUDE} ${MET_CORE_INCLUDE})
 # "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-# "$<INSTALL_INTERFACE:${OPS_INSTALL_INCLUDE_DIR}>")
+# "$<INSTALL_INTERFACE:${MET_INSTALL_INCLUDE_DIR}>")
 
-set_target_properties(ops
+set_target_properties(kernels
                       PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-install(TARGETS ops LIBRARY DESTINATION ${OPS_INSTALL_LIB_DIR})
+install(TARGETS kernels LIBRARY DESTINATION ${MET_INSTALL_LIB_DIR})
 
-set(CPU_OPS_INCLUDE ${CPU_OPS_INCLUDE} PARENT_SCOPE)
-set(GPU_OPS_INCLUDE ${GPU_OPS_INCLUDE} PARENT_SCOPE)
-set(OPS_UTILS_INCLUDE ${OPS_UTILS_INCLUDE} PARENT_SCOPE)
+set(MET_CPU_KERNEL_INCLUDE ${MET_CPU_KERNEL_INCLUDE} PARENT_SCOPE)
+set(MET_GPU_KERNEL_INCLUDE ${MET_GPU_KERNEL_INCLUDE} PARENT_SCOPE)
+set(MET_UTILS_INCLUDE ${MET_UTILS_INCLUDE} PARENT_SCOPE)
+set(MET_CORE_INCLUDE ${MET_CORE_INCLUDE} PARENT_SCOPE)

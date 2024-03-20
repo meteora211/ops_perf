@@ -5,6 +5,25 @@
 #include <emmintrin.h>
 #include <immintrin.h>
 #include <fmaintrin.h>
+#include <Tensor.h>
+
+template<typename T>
+void matmul2d_cpu(const core::Tensor& lhs, const core::Tensor& rhs, core::Tensor& output) {
+  const T* lhs_ptr = lhs.data<T>();
+  const T* rhs_ptr = rhs.data<T>();
+  T* out_ptr = output.mutable_data<T>();
+
+  int64_t M = lhs.size(0);
+  int64_t K = lhs.size(1);
+  int64_t N = rhs.size(1);
+
+  matmul_block(lhs_ptr,
+               rhs_ptr,
+               out_ptr,
+               M,
+               N,
+               K);
+}
 
 template<typename T>
 void transpose(const T* src, T* dst, int row, int col);
