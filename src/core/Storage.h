@@ -3,30 +3,27 @@
 #include <memory>
 #include <Allocator.h>
 #include <Device.h>
+#include <StorageImpl.h>
 
 namespace core {
 
 class Storage {
 public:
   Storage() = default;
-  Storage(Storage&& rhs) {
-    ptr_ = std::move(rhs.ptr_);
-    allocator_ = std::move(rhs.allocator_);
-    device_ = std::move(rhs.device_);
-  }
+  Storage(std::shared_ptr<StorageImpl> rhs) : impl_(std::move(rhs)) {}
 
   const void* data() const {
-    return ptr_.get();
+    return impl_->data()
   }
 
   void* mutable_data() {
-    return ptr_.get();
+    return impl_->mutable_data()
   }
 
 private:
   std::unique_ptr<void*> ptr_;
   std::unique_ptr<Allocator> allocator_;
-  Device device_;
+  std::shared_ptr<StorageImpl> impl_;
 };
 
 } // namespace core
