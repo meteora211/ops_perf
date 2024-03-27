@@ -14,6 +14,7 @@ void* alloc_cpu(size_t nbytes) {
 }
 
 std::unique_ptr<void> CPUAllocator::allocate(size_t n) {
+  // TODO: needs a deleter for void unique_ptr
   return std::unique_ptr<void>(alloc_cpu(n));
 }
 
