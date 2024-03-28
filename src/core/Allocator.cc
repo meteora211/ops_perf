@@ -13,9 +13,9 @@ void* alloc_cpu(size_t nbytes) {
   return data;
 }
 
-std::unique_ptr<void> CPUAllocator::allocate(size_t n) {
-  // TODO: needs a deleter for void unique_ptr
-  return std::unique_ptr<void>(alloc_cpu(n));
+std::unique_ptr<void, DeleterFn> CPUAllocator::allocate(size_t n) {
+  auto deleter = [](void* ptr){free (ptr);};
+  return std::unique_ptr<void, decltype(deleter)>(alloc_cpu(n), deleter);
 }
 
 } // namespace core

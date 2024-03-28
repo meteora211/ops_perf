@@ -8,14 +8,18 @@ namespace core {
 
 class StorageImpl {
 public:
-  StorageImpl() = delete;
-  StorageImpl(StorageImpl&& rhs) {
-    ptr_ = std::move(rhs.ptr_);
-    allocator_ = std::move(rhs.allocator_);
-    device_ = std::move(rhs.device_);
-  }
+  StorageImpl(size_t sizes,
+              std::unique_ptr<void, DeleterFn> ptr,
+              std::unique_ptr<Allocator> allocator);
+
   StorageImpl(size_t sizes,
               std::unique_ptr<Allocator> allocator);
+
+  StorageImpl() = delete;
+  StorageImpl(StorageImpl&& rhs) = delete;
+  StorageImpl(const StorageImpl& rhs) = delete;
+  StorageImpl& operator=(const StorageImpl&) = delete;
+  StorageImpl& operator=(StorageImpl&&) = delete;
 
   const void* data() const {
     return ptr_.get();
@@ -26,7 +30,7 @@ public:
   }
 
 private:
-  std::unique_ptr<void*> ptr_;
+  std::unique_ptr<void, DeleterFn> ptr_;
   std::unique_ptr<Allocator> allocator_;
   Device device_;
 };

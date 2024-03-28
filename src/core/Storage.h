@@ -13,16 +13,14 @@ public:
   Storage(std::shared_ptr<StorageImpl> rhs) : impl_(std::move(rhs)) {}
 
   const void* data() const {
-    return impl_->data()
+    return impl_->data();
   }
 
   void* mutable_data() {
-    return impl_->mutable_data()
+    return impl_->mutable_data();
   }
 
 private:
-  std::unique_ptr<void*> ptr_;
-  std::unique_ptr<Allocator> allocator_;
   std::shared_ptr<StorageImpl> impl_;
 };
 

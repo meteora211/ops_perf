@@ -28,7 +28,7 @@ bool safe_calculate_numel(const Container& sizes, uint64_t* numel) {
 }
 
 template<typename Container>
-bool safe_calculate_bytes(const Container& sizes, uint64_t item_size, uint64_t* numel) {
+bool safe_calculate_nbytes(const Container& sizes, uint64_t item_size, uint64_t* numel) {
   bool overflow = false;
   overflow |= safe_calculate_numel(sizes.begin(), sizes.end(), numel);
   overflow |= safe_mul(*numel, item_size, numel);

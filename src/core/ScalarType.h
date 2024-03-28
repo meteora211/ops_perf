@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <stdexcept>
 
 #define ALL_SCALAR_TYPES(_) \
   _(uint8_t, Byte) /* 0 */                               \
@@ -21,13 +22,26 @@ enum class ScalarType : int8_t {
 template<typename T>
 struct ScalarTypeTraits;
 
-#define SCALAR_TYPE_TRAITS(TYPE, _) \
+#define SCALAR_ITEM_SIZE(BUILTIN, SCALARTYPE) \
 template<> \
-struct ScalarTypeTraits<TYPE> { \
-static constexpr itemsize = sizeof(TYPE); \
+struct ScalarItemSize<ScalarType::TYPE> { \
+static constexpr std::size_t value = sizeof(BUILTIN); \
 };
 
-ALL_SCALAR_TYPES(SCALAR_TYPE_TRAITS)
-#undef SCALAR_TYPE_TRAITS
+// ALL_SCALAR_TYPES(SCALAR_TYPE_TRAITS)
+#undef SCALAR_ITEM_SIZE
 
 constexpr uint16_t NumScalarTypes = static_cast<uint16_t>(ScalarType::NumTypes);
+
+inline std::size_t scalar_type_size(ScalarType type) {
+#define TYPE_CASES(builtin, name) \
+  case ScalarType::name: \
+    return sizeof(builtin);
+
+  switch (type) {
+    ALL_SCALAR_TYPES(TYPE_CASES)
+    default:
+    throw std::runtime_error("Unkown data type");
+  }
+#undef TYPE_CASES
+}
