@@ -6,6 +6,8 @@ file(GLOB MET_CORE_SRCS "core/*.cc")
 add_library(core SHARED ${MET_CORE_SRCS})
 target_include_directories(core PUBLIC "core")
 
+install(TARGETS core LIBRARY DESTINATION ${MET_INSTALL_LIB_DIR})
+
 file(GLOB CPU_KERNELS "cpu/*.cc")
 file(GLOB CUDA_KERNELS "gpu/*.cu")
 

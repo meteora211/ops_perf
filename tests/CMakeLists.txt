@@ -17,11 +17,11 @@ add_executable(
 )
 
 
-target_include_directories(baseline_test PRIVATE ${CPU_OPS_INCLUDE} ${GPU_OPS_INCLUDE} ${OPS_UTILS_INCLUDE})
+target_include_directories(baseline_test PRIVATE ${MET_CPU_KERNEL_INCLUDE} ${MET_GPU_KERNEL_INCLUDE} ${MET_UTILS_INCLUDE})
 
 target_link_libraries(
   baseline_test
-  ops
+  kernels
   utils
   GTest::gtest_main
 )

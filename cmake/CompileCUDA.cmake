@@ -7,6 +7,6 @@ function(CompileCUDA SOURCE_FILES)
         CUDA_SEPARABLE_COMPILATION ON
     )
     # target_compile_options(${executable_name} PRIVATE -O3 -Wall -fno-elide-constructors)
-    install(TARGETS ${executable_name} DESTINATION ${OPS_INSTALL_BIN_DIR})
+    install(TARGETS ${executable_name} DESTINATION ${MET_INSTALL_BIN_DIR})
   endforeach()
 endfunction()
