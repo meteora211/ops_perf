@@ -10,21 +10,25 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
-
-add_executable(
-  baseline_test
-  baseline_test.cc
-)
-
-
-target_include_directories(baseline_test PRIVATE ${MET_CPU_KERNEL_INCLUDE} ${MET_GPU_KERNEL_INCLUDE} ${MET_UTILS_INCLUDE})
-
-target_link_libraries(
-  baseline_test
-  kernels
-  utils
-  GTest::gtest_main
-)
-
 include(GoogleTest)
-gtest_discover_tests(baseline_test)
+
+
+# TODO: expose BUILD_TEST in cmake configure
+set(BUILD_TEST ON)
+
+file(GLOB_RECURSE ALL_TEST_FILES *_test.cc)
+if(BUILD_TEST)
+  foreach(test_src ${ALL_TEST_FILES})
+    get_filename_component(test_file_name ${test_src} NAME_WE)
+    # set(test_name "${test_file_name}")
+    message(STATUS ${test_file_name})
+    add_executable(${test_file_name} "${test_src}")
+    target_link_libraries(${test_file_name} core kernels utils gtest gtest_main)
+    target_include_directories(${test_file_name} PRIVATE ${MET_CPU_KERNEL_INCLUDE} ${MET_GPU_KERNEL_INCLUDE} ${MET_UTILS_INCLUDE})
+    add_test(NAME ${test_file_name} COMMAND $<TARGET_FILE:${test_file_name}>)
+    # gtest_discover_tests(${test_file_name})
+    # if(INSTALL_TEST)
+    #   install(TARGETS ${test_file_name} DESTINATION test)
+    # endif()
+  endforeach()
+endif()
