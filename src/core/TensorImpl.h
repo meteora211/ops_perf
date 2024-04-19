@@ -24,6 +24,10 @@ public:
     return sizes_.at(dim);
   }
 
+  std::vector<int64_t> sizes() const {
+    return sizes_;
+  }
+  
   template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
   void setSize(const std::vector<T> sizes) {
     sizes_.resize(sizes.size());

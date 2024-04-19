@@ -43,6 +43,10 @@ public:
     return impl_->size(dim);
   }
 
+  std::vector<int64_t> sizes() const {
+    return impl_->sizes();
+  }
+
   // TODO: only valid for supported datatype T
   // TODO: when T contains const
   template<typename T>

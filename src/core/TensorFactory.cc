@@ -2,7 +2,9 @@
 #include "TensorFactory.h"
 #include "utils.h"
 
+// TODO: headers for all kernel api
 #include "cpu_matmul.h"
+#include "cpu_add.h"
 
 namespace core {
 
@@ -13,6 +15,16 @@ Tensor empty_cpu(const std::vector<int64_t>& sizes, ScalarType type) {
   auto storage_impl = std::make_shared<StorageImpl>(nbytes, std::move(allocator));
   auto tensor_impl = std::make_shared<TensorImpl>(storage_impl);
   Tensor t(tensor_impl);
+  return t;
+}
+
+Tensor add_tensor_cpu(const Tensor& lhs, const Tensor& rhs) {
+  const auto& lhs_sizes = lhs.sizes();
+  const auto& rhs_sizes = rhs.sizes();
+
+  Tensor t = empty_cpu(sizes, dtype);
+  add_kernel(lhs_data, rhs_data, out_data);
+
   return t;
 }
 
