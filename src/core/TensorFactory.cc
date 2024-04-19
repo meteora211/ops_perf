@@ -1,8 +1,8 @@
-#include <Tensor.h>
-#include <TensorFactory.h>
-#include <utils.h>
+#include "Tensor.h"
+#include "TensorFactory.h"
+#include "utils.h"
 
-#include <cpu_matmul.h>
+#include "cpu_matmul.h"
 
 namespace core {
 
