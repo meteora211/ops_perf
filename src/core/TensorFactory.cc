@@ -4,6 +4,7 @@
 
 // TODO: headers for all kernel api
 #include "cpu_matmul.h"
+#include "generator.h"
 #include "cpu_add.h"
 
 namespace core {
@@ -21,13 +22,30 @@ Tensor empty_cpu(const std::vector<int64_t>& sizes, ScalarType type) {
 Tensor add_tensor_cpu(const Tensor& lhs, const Tensor& rhs) {
   const auto& lhs_sizes = lhs.sizes();
   const auto& rhs_sizes = rhs.sizes();
+  // TODO: data type check
+  // TODO: assume lhs/rhs has same input sizes and add broadcast handling later
 
-  Tensor t = empty_cpu(sizes, dtype);
-  add_kernel(lhs_data, rhs_data, out_data);
 
-  return t;
+  Tensor out = empty_cpu(lhs_sizes, dtype);
+  // TODO: how to automatic detect and fetch data with type?
+  const auto* lhs_data = lhs.data<float>();
+  const auto* rhs_data = rhs.data<float>();
+  auto* out_data = out.mutable_data<float>();
+  // TODO: how to dispatch on different type?
+  // TODO: binary ops
+  // TODO: how to handle stride, shape and dimentions?
+  add_kernel(lhs_data, rhs_data, out_data, lhs_data.sizes()[0], lhs_data.sizes()[1]);
+
+  return out;
 }
 
+Tensor ones_cpu(std::vector<int64_t> sizes, ScalarType type) {
+  Tensor out = empty_cpu(sizes, type);
+  auto* out_data = out.mutable_data<float>();
+  full_kernel(out_data, 0);
+
+  return out;
+}
 // template<typename T>
 // void matmul2d_cpu(const core::Tensor& lhs, const core::Tensor& rhs, core::Tensor& output) {
 //   const T* lhs_ptr = lhs.data<T>();
