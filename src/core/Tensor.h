@@ -47,6 +47,10 @@ public:
     return impl_->sizes();
   }
 
+  int64_t numel() const {
+    return impl_->numel();
+  }
+
   // TODO: only valid for supported datatype T
   // TODO: when T contains const
   template<typename T>

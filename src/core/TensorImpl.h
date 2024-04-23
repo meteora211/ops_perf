@@ -1,10 +1,11 @@
 #pragma once
-#include <Device.h>
-#include <Storage.h>
 #include <optional>
 #include <vector>
 #include <ranges>
 #include <type_traits>
+#include "ScalarType.h"
+#include "Device.h"
+#include "Storage.h"
 
 namespace core {
 
@@ -27,7 +28,7 @@ public:
   std::vector<int64_t> sizes() const {
     return sizes_;
   }
-  
+
   template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
   void setSize(const std::vector<T> sizes) {
     sizes_.resize(sizes.size());
@@ -53,10 +54,15 @@ public:
     return static_cast<T*>(storage_.mutable_data());
   }
 
+  ScalarType dtype() const {
+    return data_type_;
+  }
+
 private:
   Storage storage_;
   // std::optional<Device> device_;
   int64_t numel_;
+  ScalarType data_type_;
   // TODO: take llvm small vector
   std::vector<int64_t> sizes_;
 };
