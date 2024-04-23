@@ -3,6 +3,7 @@
 #include <vector>
 #include <ranges>
 #include <type_traits>
+#include <iostream>
 #include "ScalarType.h"
 #include "Device.h"
 #include "Storage.h"
@@ -11,7 +12,7 @@ namespace core {
 
 class TensorImpl {
 public:
-  TensorImpl(Storage&& storage);
+  TensorImpl(Storage&& storage, ScalarType dtype);
 
   TensorImpl() = delete;
   TensorImpl(const TensorImpl&) = delete;
@@ -30,9 +31,9 @@ public:
   }
 
   template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-  void setSize(const std::vector<T> sizes) {
+  void setSize(const std::vector<T>& sizes) {
     sizes_.resize(sizes.size());
-    for (auto&& i : std::views::iota(0, sizes.size())) {
+    for (int i : std::views::iota(0, static_cast<int>(sizes.size()))) {
       numel_ *= sizes[i];
       sizes_[i] = sizes[i];
     }

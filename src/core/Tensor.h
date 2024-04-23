@@ -3,7 +3,7 @@
 #include <memory>
 #include <exception>
 #include <stdexcept>
-#include <TensorImpl.h>
+#include "TensorImpl.h"
 
 namespace core {
 
@@ -49,6 +49,10 @@ public:
 
   int64_t numel() const {
     return impl_->numel();
+  }
+
+  ScalarType dtype() const {
+    return impl_->dtype();
   }
 
   // TODO: only valid for supported datatype T

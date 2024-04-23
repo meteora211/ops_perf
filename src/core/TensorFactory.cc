@@ -14,7 +14,9 @@ Tensor empty_cpu(const std::vector<int64_t>& sizes, ScalarType type) {
   bool overflow = safe_calculate_nbytes(sizes, scalar_type_size(type), &nbytes);
   auto allocator = std::make_unique<CPUAllocator>();
   auto storage_impl = std::make_shared<StorageImpl>(nbytes, std::move(allocator));
-  auto tensor_impl = std::make_shared<TensorImpl>(storage_impl);
+  auto tensor_impl = std::make_shared<TensorImpl>(storage_impl, type);
+  // TODO: check how torch implement this
+  tensor_impl->setSize(sizes);
   Tensor t(tensor_impl);
   return t;
 }
@@ -26,23 +28,24 @@ Tensor add_tensor_cpu(const Tensor& lhs, const Tensor& rhs) {
   // TODO: assume lhs/rhs has same input sizes and add broadcast handling later
 
 
-  Tensor out = empty_cpu(lhs_sizes, dtype);
+  Tensor out = empty_cpu(lhs_sizes, lhs.dtype());
   // TODO: how to automatic detect and fetch data with type?
-  const auto* lhs_data = lhs.data<float>();
-  const auto* rhs_data = rhs.data<float>();
+  const auto* lhs_data = lhs.data<const float>();
+  const auto* rhs_data = rhs.data<const float>();
   auto* out_data = out.mutable_data<float>();
   // TODO: how to dispatch on different type?
   // TODO: binary ops
   // TODO: how to handle stride, shape and dimentions?
-  add_kernel(lhs_data, rhs_data, out_data, lhs_data.sizes()[0], lhs_data.sizes()[1]);
+  add_kernel(lhs_data, rhs_data, out_data, lhs.sizes()[0], rhs.sizes()[1]);
 
   return out;
 }
 
 Tensor ones_cpu(std::vector<int64_t> sizes, ScalarType type) {
   Tensor out = empty_cpu(sizes, type);
-  auto* out_data = out.mutable_data<float>();
-  full_kernel(out_data, 0);
+  float* out_data = out.mutable_data<float>();
+  auto numel = out.numel(); 
+  full_kernel(out_data, 1.f, numel);
 
   return out;
 }
