@@ -1,19 +1,22 @@
-#include "Tensor.h"
 #include "TensorFactory.h"
+#include "Tensor.h"
 #include "utils.h"
+#include <iostream>
 
 // TODO: headers for all kernel api
+#include "cpu_add.h"
 #include "cpu_matmul.h"
 #include "generator.h"
-#include "cpu_add.h"
 
 namespace core {
 
-Tensor empty_cpu(const std::vector<int64_t>& sizes, ScalarType type) {
+Tensor empty_cpu(const std::vector<int64_t> &sizes, ScalarType type) {
   uint64_t nbytes = 1;
   bool overflow = safe_calculate_nbytes(sizes, scalar_type_size(type), &nbytes);
+  std::cout << "nbytes: " << nbytes << std::endl;
   auto allocator = std::make_unique<CPUAllocator>();
-  auto storage_impl = std::make_shared<StorageImpl>(nbytes, std::move(allocator));
+  auto storage_impl =
+      std::make_shared<StorageImpl>(nbytes, std::move(allocator));
   auto tensor_impl = std::make_shared<TensorImpl>(storage_impl, type);
   // TODO: check how torch implement this
   tensor_impl->setSize(sizes);
@@ -21,18 +24,18 @@ Tensor empty_cpu(const std::vector<int64_t>& sizes, ScalarType type) {
   return t;
 }
 
-Tensor add_tensor_cpu(const Tensor& lhs, const Tensor& rhs) {
-  const auto& lhs_sizes = lhs.sizes();
-  const auto& rhs_sizes = rhs.sizes();
+Tensor add_tensor_cpu(const Tensor &lhs, const Tensor &rhs) {
+  const auto &lhs_sizes = lhs.sizes();
+  const auto &rhs_sizes = rhs.sizes();
   // TODO: data type check
   // TODO: assume lhs/rhs has same input sizes and add broadcast handling later
 
-
   Tensor out = empty_cpu(lhs_sizes, lhs.dtype());
   // TODO: how to automatic detect and fetch data with type?
-  const auto* lhs_data = lhs.data<const float>();
-  const auto* rhs_data = rhs.data<const float>();
-  auto* out_data = out.mutable_data<float>();
+  // TODO: remove const in data<const float>?
+  const auto *lhs_data = lhs.data<const float>();
+  const auto *rhs_data = rhs.data<const float>();
+  auto *out_data = out.mutable_data<float>();
   // TODO: how to dispatch on different type?
   // TODO: binary ops
   // TODO: how to handle stride, shape and dimentions?
@@ -43,14 +46,15 @@ Tensor add_tensor_cpu(const Tensor& lhs, const Tensor& rhs) {
 
 Tensor ones_cpu(std::vector<int64_t> sizes, ScalarType type) {
   Tensor out = empty_cpu(sizes, type);
-  float* out_data = out.mutable_data<float>();
-  auto numel = out.numel(); 
+  float *out_data = out.mutable_data<float>();
+  auto numel = out.numel();
   full_kernel(out_data, 1.f, numel);
 
   return out;
 }
 // template<typename T>
-// void matmul2d_cpu(const core::Tensor& lhs, const core::Tensor& rhs, core::Tensor& output) {
+// void matmul2d_cpu(const core::Tensor& lhs, const core::Tensor& rhs,
+// core::Tensor& output) {
 //   const T* lhs_ptr = lhs.data<T>();
 //   const T* rhs_ptr = rhs.data<T>();
 //   T* out_ptr = output.mutable_data<T>();

@@ -7,6 +7,7 @@ include(CheckLanguage)
 check_language(CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
+# TODO: debug option
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -O0 -g -march=native -fopenmp")
 
 set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR})
