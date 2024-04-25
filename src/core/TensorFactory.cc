@@ -13,7 +13,6 @@ namespace core {
 Tensor empty_cpu(const std::vector<int64_t> &sizes, ScalarType type) {
   uint64_t nbytes = 1;
   bool overflow = safe_calculate_nbytes(sizes, scalar_type_size(type), &nbytes);
-  std::cout << "nbytes: " << nbytes << std::endl;
   auto allocator = std::make_unique<CPUAllocator>();
   auto storage_impl =
       std::make_shared<StorageImpl>(nbytes, std::move(allocator));
@@ -39,7 +38,7 @@ Tensor add_tensor_cpu(const Tensor &lhs, const Tensor &rhs) {
   // TODO: how to dispatch on different type?
   // TODO: binary ops
   // TODO: how to handle stride, shape and dimentions?
-  add_kernel(lhs_data, rhs_data, out_data, lhs.sizes()[0], rhs.sizes()[1]);
+  add_kernel(lhs_data, rhs_data, out_data, lhs.sizes()[0], lhs.sizes()[1]);
 
   return out;
 }
