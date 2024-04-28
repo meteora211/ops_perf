@@ -47,6 +47,10 @@ public:
     return impl_->sizes();
   }
 
+  std::vector<int64_t> strides() const {
+    return impl_->strides();
+  }
+
   int64_t numel() const {
     return impl_->numel();
   }

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <vector>
 #include <iostream>
 
 #include "Tensor.h"
@@ -9,6 +10,10 @@ using namespace core;
 TEST(TestTensor, TestCreate) {
   Tensor t = empty_cpu({2,3,4}, ScalarType::Float);
   EXPECT_TRUE(t.numel() == 24);
+  bool check_size = t.sizes() == std::vector<int64_t>{2, 3, 4};
+  EXPECT_TRUE(check_size);
+  bool check_stride = t.strides() == std::vector<int64_t>{12, 4, 1};
+  EXPECT_TRUE(check_stride);
 }
 
 TEST(TestTensor, TestOnes) {
