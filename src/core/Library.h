@@ -5,6 +5,11 @@
 #include <list>
 #include <vector>
 
+// Library (core, custom)
+//   Operator (add, sub, ...)
+//     Kernel (cpu, gpu, ...)
+//
+//
 // TODO: Library for register custom operator
 class Library {
 };
@@ -14,30 +19,42 @@ struct KernelFunction {
 
 };
 
+class Schema;
+
+class Operator {
+public:
+  Operator() = default;
+  ~Operator() = default;
+
+private:
+  std::vector<KernelFunction> kernelLookupTable_;
+  Schema schema_;
+};
+
+
 // TODO: Operator registry for different backend
 class OperatorRegistry {
 public:
   OperatorRegistry() = default;
   ~OperatorRegistry() = default;
 
-  void registerOperator(std::string backend) {
+  void registerOperator(Operator op) {
+    // TODO: register operator
   }
 
 private:
-  std::vector<KernelFunction> kernelLookupTable_;
+  // std::vector<KernelFunction> kernelLookupTable_;
+  std::unordered_map<std::string, Operator> operatorLookupTable_;
 };
 
+// TODO: using operator schema
+Operator getOperator(const std::string &name);
 
-class OperatorHandler {
-private:
-  std::list<Kernel> dispatchTable_;
-};
-
-class Dispatcher {
-private:
-  // TODO: use string to identify operator temporarily
-  std::unordered_map<std::string, OperatorHandler> operatorLookupTable_;
-};
+// class Dispatcher {
+// private:
+//   // TODO: use string to identify operator temporarily
+//   std::unordered_map<std::string, OperatorHandler> operatorLookupTable_;
+// };
 
 
 // Example usage:
@@ -66,6 +83,5 @@ OperatorRegistry &operatorRegistry() {
 }
 
 
-#define REGISTER_OP(backend)                                               \
-  bool operator##_entry = operatorRegistry().registerOperator(backend);
-
+#define REGISTER_OP(schema)                                               \
+  bool operator##_entry = operatorRegistry().registerOperator(schema);
