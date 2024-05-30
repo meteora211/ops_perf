@@ -1,6 +1,7 @@
 #include "TensorFactory.h"
 #include "Tensor.h"
 #include "utils.h"
+#include "Library.h"
 #include <iostream>
 
 // TODO: headers for all kernel api
@@ -51,6 +52,9 @@ Tensor ones_cpu(std::vector<int64_t> sizes, ScalarType type) {
 
   return out;
 }
+
+REGISTER_OP("add", CPU, add_tensor_cpu)
+
 // template<typename T>
 // void matmul2d_cpu(const core::Tensor& lhs, const core::Tensor& rhs,
 // core::Tensor& output) {

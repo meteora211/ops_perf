@@ -4,6 +4,8 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <array>
+#include "traits.h"
 
 enum class DispatchKey : uint16_t {
   CPU,
@@ -23,10 +25,46 @@ constexpr uint8_t num_backends = static_cast<uint8_t>(DispatchKey::EndOfKey);
 class Library {
 };
 
+// template<typename FuncType, typename ReturnType, typename ParamLists>
+// class Callable;
+
+template<typename FuncType, typename ReturnType, typename... Params>
+class Callable {
+public:
+  explicit Callable(FuncType&& func) : func_(std::forward<FuncType>(func)) {}
+  ~Callable() = default;
+  decltype(auto) operator()(Params&&... args) {
+    return func_(std::forward<Params>(args)...);
+  }
+private:
+  FuncType func_;
+};
+
+template<typename FuncType>
+using CallableWrapper = Callable<
+  FuncType,
+  typename traits::infer_function_traits_t<FuncType>::return_type,
+  typename traits::infer_function_traits_t<FuncType>::parameter_types
+>;
+
+
 // TODO: Callable wrapper for a kernel function
 struct KernelFunction {
-  template<typename... Args>
-  void operator()(Args&&... args) {}
+  // template<typename Functor>
+  // KernelFunction(Functor *f) : functor_(f) {};
+  KernelFunction() = default;
+  KernelFunction(void* functor) : functor_(functor) {};
+  ~KernelFunction() = default;
+
+  template<typename Return, typename... Args>
+  Return call(Args&&... args) {
+    // TODO: check nullptr
+    using Signature = Return(Args...);
+    Signature* sig = reinterpret_cast<Signature*>(functor_);
+    return (*sig)(std::forward<Args>(args)...);
+  }
+
+  void* functor_;
 };
 
 // TODO: use function schema instead of string
@@ -47,35 +85,50 @@ private:
 
 class Operator {
 public:
-  Operator() = default;
-  ~Operator() = default;
   Operator(std::string name) : schema_(name) {}
+  virtual ~Operator() = default;
 
   std::string name() const {
     return schema_.name();
   }
 
+
+  bool registerKernel(DispatchKey key, void* kernel) {
+    kernelLookupTable_[static_cast<int>(key)] = kernel;
+    return true;
+  }
+
+protected:
+  Schema schema_;
+  std::array<KernelFunction, num_backends> kernelLookupTable_;
+};
+
+template<typename Func>
+class TypedOperator : public Operator {
+};
+
+template<typename ReturnType, typename... Params>
+class TypedOperator<ReturnType(Params...)> : public Operator {
+public:
+  explicit TypedOperator(std::string name) : Operator(name) {}
+
   // TODO: dispatch to actual kernel with dispatchkey
-  template<typename... Args>
-  void call(Args&&... args) {
-    // TODO: return type
-    auto key = getDispatchKey(std::forward<Args>(args)...);
-    return kernelLookupTable_[key](args...);
+  ReturnType call(Params&&... args) {
+    // TODO: return type and universe reference
+    auto key = getDispatchKey(std::forward<Params>(args)...);
+    return kernelLookupTable_[key].template call<ReturnType, Params...>(std::forward<Params>(args)...);
   }
 
   template<typename... Args>
   DispatchKey getDispatchKey(Args&&... args) const {
+    // TODO: hardcoded for test
     return DispatchKey::CPU;
   }
 
-  void registerKernel(DispatchKey key, KernelFunction kernel) {
-    kernelLookupTable_[key] = kernel;
+  bool registerKernel(DispatchKey key, KernelFunction kernel) {
+    kernelLookupTable_[static_cast<int>(key)] = kernel;
+    return true;
   }
-  
-
-private:
-  std::array<KernelFunction, num_backends> kernelLookupTable_;
-  Schema schema_;
 };
 
 
@@ -85,18 +138,28 @@ public:
   OperatorRegistry() = default;
   ~OperatorRegistry() = default;
 
-  Operator registerOperator(Operator op) {
+  Operator& registerOperator(Operator& op) {
     // TODO: register operator
-    operatorLookupTable_[op.name()] = op;
+    // operatorLookupTable_[op.name()] = op;
+    operatorLookupTable_.emplace(op.name(), op);
+    return op;
+  }
+
+  Operator registerOperator(Schema&& scheme) {
+    // TODO: register operator
+    Operator op(scheme.name());
+    // operatorLookupTable_[op.name()] = op;
+    operatorLookupTable_.emplace(op.name(), op);
     return op;
   }
 
   Operator getOperator(const std::string &name) {
     // TODO: get operator
-    if (operatorLookupTable_.find(name) == operatorLookupTable_.end()) {
-      return Operator();
+    auto it = operatorLookupTable_.find(name);
+    if (it == operatorLookupTable_.end()) {
+      return Operator(name);
     }
-    return operatorLookupTable_[name];
+    return it->second;
   }
 
 private:
@@ -138,4 +201,6 @@ OperatorRegistry &operatorRegistry();
 
 // REGISTER_OP("add", CPU, add_cpu_impl)
 #define REGISTER_OP(schema, backend, kernel)                                  \
-  bool operator##_backend = operatorRegistry().registerOperator(schema).registerKernel(backend, kernel);
+  bool operator##_backend = operatorRegistry() \
+    .registerOperator(Schema(schema))  \
+    .registerKernel(DispatchKey::backend, reinterpret_cast<void*>(&kernel));
