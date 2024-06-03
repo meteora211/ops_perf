@@ -1,4 +1,5 @@
 #include "Library.h"
+#include "Schema.h"
 
 
 OperatorRegistry &operatorRegistry() {
@@ -6,7 +7,7 @@ OperatorRegistry &operatorRegistry() {
   return operatorRegistry_;
 }
 
-Operator getOperator(const std::string &name) {
+Operator getOperator(const Schema& name) {
   return operatorRegistry().getOperator(name);
 }
 

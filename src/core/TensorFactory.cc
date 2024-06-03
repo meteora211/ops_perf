@@ -53,7 +53,7 @@ Tensor ones_cpu(std::vector<int64_t> sizes, ScalarType type) {
   return out;
 }
 
-REGISTER_OP("add", CPU, add_tensor_cpu)
+REGISTER_OP(add, Tensor(const Tensor&, const Tensor&), CPU, add_tensor_cpu)
 
 // template<typename T>
 // void matmul2d_cpu(const core::Tensor& lhs, const core::Tensor& rhs,
