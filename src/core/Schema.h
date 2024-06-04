@@ -7,7 +7,7 @@ public:
   Schema() = default;
   ~Schema() = default;
 
-  Schema(std::string name, std::string sig) : name_(name), signature_(sig) {}
+  Schema(std::string name) : name_(name){}
   // Schema(Schema &&schema)
   //     : name_(std::move(schema.name_)),
   //       signature_(std::move(schema.signature_)) {}

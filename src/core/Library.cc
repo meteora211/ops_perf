@@ -10,5 +10,3 @@ OperatorRegistry &operatorRegistry() {
 Operator getOperator(const Schema& name) {
   return operatorRegistry().getOperator(name);
 }
-
-

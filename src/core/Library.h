@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "traits.h"
 #include "Schema.h"
+#include "traits.h"
 
 enum class DispatchKey : uint16_t {
   CPU,
@@ -65,7 +65,6 @@ struct KernelFunction {
   void *functor_;
 };
 
-
 class Operator {
 public:
   explicit Operator(Schema &&schema) : schema_(std::move(schema)) {}
@@ -73,7 +72,7 @@ public:
   virtual ~Operator() = default;
 
   std::string name() const { return schema_.name(); }
-  const Schema& schema() const { return schema_; }
+  const Schema &schema() const { return schema_; }
 
   bool registerKernel(DispatchKey key, void *kernel) {
     kernelLookupTable_[static_cast<int>(key)] = kernel;
@@ -82,6 +81,7 @@ public:
 
 protected:
   Schema schema_;
+  // std::string schema_;
   std::array<KernelFunction, num_backends> kernelLookupTable_;
 };
 
@@ -97,7 +97,7 @@ public:
   ReturnType call(Params &&...args) {
     // TODO: return type and universe reference
     auto key = getDispatchKey(std::forward<Params>(args)...);
-    return kernelLookupTable_[key].template call<ReturnType, Params...>(
+    return kernelLookupTable_[static_cast<uint>(key)].template call<ReturnType, Params...>(
         std::forward<Params>(args)...);
   }
 
@@ -124,14 +124,15 @@ public:
   //   return op;
   // }
 
-  template <typename Func> Operator registerOperator(Schema &&scheme) {
+  // template <typename Func> Operator registerOperator(Schema &&scheme) {
+  template <typename Func> Operator registerOperator(const std::string &name) {
     // TODO: register operator
-    TypedOperator<Func> op(scheme);
+    TypedOperator<Func> op(name);
     operatorLookupTable_.emplace(op.schema(), op);
     return op;
   }
 
-  Operator getOperator(const Schema& name) {
+  Operator getOperator(const Schema &name) {
     // TODO: get operator
     auto it = operatorLookupTable_.find(name);
     if (it == operatorLookupTable_.end()) {
@@ -173,19 +174,24 @@ private:
 // Operator getOperator(const std::string &name);
 Operator getOperator(const Schema &name);
 
+template <typename Func>
+TypedOperator<Func> getTypedOperator(const Schema &name) {
+  return static_cast<TypedOperator<Func>>(getOperator(name));
+}
+
 OperatorRegistry &operatorRegistry();
 
-// REGISTER_OP("add", CPU, add_cpu_impl)
+// REGISTER_OP(add, Tensor(const Tensor&, const Tensor&), CPU, add_cpu_impl)
 #define REGISTER_OP(name, sig, backend, kernel)                                \
   struct name##_schema {                                                       \
     using schema = sig;                                                        \
     using ptr_schema = schema *;                                               \
   };                                                                           \
-  auto operator##_backend = operatorRegistry()                               \
-      .registerOperator<sig>(Schema(#name, #sig))                          \
+  auto operator##_backend = operatorRegistry()                                 \
+      .registerOperator<sig>(#name)                                            \
       .registerKernel(DispatchKey::backend,                                    \
                       reinterpret_cast<void *>(&kernel));
-  // static TypedOperator<sig> create_##name##_##backend##_operator() {}       \
+// static TypedOperator<sig> create_##name##_##backend##_operator() {}       \
 
 // struct TORCH_API {name} {{
 //   using schema = {sig.type()};
