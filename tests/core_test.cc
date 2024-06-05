@@ -10,7 +10,7 @@ using namespace core;
 TEST(TestCore, TestRegister) {
   Tensor a = ones_cpu({2,3}, ScalarType::Float);
   Tensor b = ones_cpu({2,3}, ScalarType::Float);
-  auto add = getTypedOperator<Tensor(const Tensor&, const Tensor&)>(Schema("add"));
+  const auto& add = getTypedOperator<Tensor(const Tensor&, const Tensor&)>(Schema("add"));
   auto c = add.call(a,b);
   EXPECT_TRUE(c.numel() == 6);
   const float* data = c.data<const float>();

@@ -7,6 +7,6 @@ OperatorRegistry &operatorRegistry() {
   return operatorRegistry_;
 }
 
-Operator getOperator(const Schema& name) {
+const Operator& getOperator(const Schema& name) {
   return operatorRegistry().getOperator(name);
 }

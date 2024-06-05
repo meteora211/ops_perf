@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <iostream>
 #include <list>
 #include <string>
 #include <unordered_map>
@@ -52,10 +53,19 @@ struct KernelFunction {
   // template<typename Functor>
   // KernelFunction(Functor *f) : functor_(f) {};
   KernelFunction() = default;
-  KernelFunction(void *functor) : functor_(functor){};
   ~KernelFunction() = default;
+  KernelFunction(void *functor) : functor_(functor){};
+  // KernelFunction& operator=(const KernelFunction& rhs) {
+  //   functor_ = rhs.functor_;
+  //   return *this;
+  // }
+  // KernelFunction& operator=(KernelFunction&& rhs) {
+  //   functor_ = rhs.functor_;
+  //   return *this;
+  // }
 
-  template <typename Return, typename... Args> Return call(Args &&...args) {
+  template <typename Return, typename... Args>
+  Return call(Args &&...args) const {
     // TODO: check nullptr
     using Signature = Return(Args...);
     Signature *sig = reinterpret_cast<Signature *>(functor_);
@@ -67,15 +77,15 @@ struct KernelFunction {
 
 class Operator {
 public:
-  explicit Operator(Schema &&schema) : schema_(std::move(schema)) {}
-  explicit Operator(const Schema &schema) : schema_(schema) {}
+  Operator(Schema &&schema) : schema_(std::move(schema)) {}
+  Operator(const Schema &schema) : schema_(schema) {}
   virtual ~Operator() = default;
 
-  std::string name() const { return schema_.name(); }
-  const Schema &schema() const { return schema_; }
+  virtual std::string name() const { return schema_.name(); }
+  virtual const Schema &schema() const { return schema_; }
 
-  bool registerKernel(DispatchKey key, void *kernel) {
-    kernelLookupTable_[static_cast<int>(key)] = kernel;
+  virtual bool registerKernel(DispatchKey key, void *kernel) {
+    kernelLookupTable_[static_cast<int>(key)] = KernelFunction{kernel};
     return true;
   }
 
@@ -90,15 +100,15 @@ template <typename Func> class TypedOperator : public Operator {};
 template <typename ReturnType, typename... Params>
 class TypedOperator<ReturnType(Params...)> : public Operator {
 public:
-  explicit TypedOperator(Schema &&name) : Operator(std::move(name)) {}
-  explicit TypedOperator(const Schema &name) : Operator(name) {}
+  TypedOperator(Schema &&name) : Operator(std::move(name)) {}
+  TypedOperator(const Schema &name) : Operator(name) {}
 
   // TODO: dispatch to actual kernel with dispatchkey
-  ReturnType call(Params &&...args) {
+  ReturnType call(Params &&...args) const {
     // TODO: return type and universe reference
     auto key = getDispatchKey(std::forward<Params>(args)...);
-    return kernelLookupTable_[static_cast<uint>(key)].template call<ReturnType, Params...>(
-        std::forward<Params>(args)...);
+    return kernelLookupTable_[static_cast<int>(key)]
+        .template call<ReturnType, Params...>(std::forward<Params>(args)...);
   }
 
   template <typename... Args> DispatchKey getDispatchKey(Args &&...args) const {
@@ -106,10 +116,10 @@ public:
     return DispatchKey::CPU;
   }
 
-  bool registerKernel(DispatchKey key, KernelFunction kernel) {
-    kernelLookupTable_[static_cast<int>(key)] = kernel;
-    return true;
-  }
+  // bool registerKernel(DispatchKey key, KernelFunction kernel) {
+  //   kernelLookupTable_[static_cast<int>(key)] = kernel;
+  //   return true;
+  // }
 };
 
 // TODO: Operator registry for different backend
@@ -118,25 +128,21 @@ public:
   OperatorRegistry() = default;
   ~OperatorRegistry() = default;
 
-  // Operator &registerOperator(Operator &op) {
-  //   // TODO: register operator
-  //   operatorLookupTable_.emplace(op.name(), op);
-  //   return op;
-  // }
-
   // template <typename Func> Operator registerOperator(Schema &&scheme) {
-  template <typename Func> Operator registerOperator(const std::string &name) {
-    // TODO: register operator
+  template <typename Func>
+  Operator &registerOperator(const std::string &name) {
+    if (operatorLookupTable_.find(name) != operatorLookupTable_.end()) {
+      return operatorLookupTable_.at(name);
+    }
     TypedOperator<Func> op(name);
     operatorLookupTable_.emplace(op.schema(), op);
-    return op;
+    return operatorLookupTable_.at(name);
   }
 
-  Operator getOperator(const Schema &name) {
-    // TODO: get operator
+  const Operator &getOperator(const Schema &name) {
     auto it = operatorLookupTable_.find(name);
     if (it == operatorLookupTable_.end()) {
-      return Operator(name);
+      throw std::runtime_error("No operator with name " + name.name());
     }
     return it->second;
   }
@@ -172,11 +178,12 @@ private:
 
 // TODO: using operator schema
 // Operator getOperator(const std::string &name);
-Operator getOperator(const Schema &name);
+const Operator &getOperator(const Schema &name);
 
 template <typename Func>
-TypedOperator<Func> getTypedOperator(const Schema &name) {
-  return static_cast<TypedOperator<Func>>(getOperator(name));
+const TypedOperator<Func> &getTypedOperator(const Schema &name) {
+  const Operator &op = getOperator(name);
+  return *static_cast<const TypedOperator<Func> *>(&op);
 }
 
 OperatorRegistry &operatorRegistry();
@@ -191,33 +198,5 @@ OperatorRegistry &operatorRegistry();
       .registerOperator<sig>(#name)                                            \
       .registerKernel(DispatchKey::backend,                                    \
                       reinterpret_cast<void *>(&kernel));
-// static TypedOperator<sig> create_##name##_##backend##_operator() {}       \
 
-// struct TORCH_API {name} {{
-//   using schema = {sig.type()};
-//   using ptr_schema = schema*;
-//   // See Note [static constexpr char* members for windows NVCC]
-//   STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(name, "aten::{f.func.name.name}")
-//   STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(overload_name,
-//   "{f.func.name.overload_name}")
-//   STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(schema_str,
-//   {cpp_string(str(f.func))}) static {sig.defn(name="call",
-//   is_redispatching_fn=False)}; static {sig.defn(name="redispatch",
-//   is_redispatching_fn=True)};
-// }};"""
-//
-//         elif self.target is Target.DEFINITION:
-//             defns = f"""
-// STATIC_CONST_STR_OUT_OF_LINE_FOR_WIN_CUDA({name}, name,
-// "aten::{f.func.name.name}") STATIC_CONST_STR_OUT_OF_LINE_FOR_WIN_CUDA({name},
-// overload_name, "{f.func.name.overload_name}")
-// STATIC_CONST_STR_OUT_OF_LINE_FOR_WIN_CUDA({name}, schema_str,
-// {cpp_string(str(f.func))})
-//
-// // aten::{f.func}
-// static C10_NOINLINE c10::TypedOperatorHandle<{name}::schema>
-// create_{name}_typed_handle() {{
-//   return c10::Dispatcher::singleton()
-//       .findSchemaOrThrow({name}::name, {name}::overload_name)
-//       .typed<{name}::schema>();
-// }}
+// static TypedOperator<sig> create_##name##_##backend##_operator() {}
