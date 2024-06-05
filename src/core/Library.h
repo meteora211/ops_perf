@@ -115,11 +115,6 @@ public:
     // TODO: hardcoded for test
     return DispatchKey::CPU;
   }
-
-  // bool registerKernel(DispatchKey key, KernelFunction kernel) {
-  //   kernelLookupTable_[static_cast<int>(key)] = kernel;
-  //   return true;
-  // }
 };
 
 // TODO: Operator registry for different backend
@@ -129,8 +124,7 @@ public:
   ~OperatorRegistry() = default;
 
   // template <typename Func> Operator registerOperator(Schema &&scheme) {
-  template <typename Func>
-  Operator &registerOperator(const std::string &name) {
+  template <typename Func> Operator &registerOperator(const std::string &name) {
     if (operatorLookupTable_.find(name) != operatorLookupTable_.end()) {
       return operatorLookupTable_.at(name);
     }
@@ -151,31 +145,6 @@ private:
   std::unordered_map<Schema, Operator> operatorLookupTable_;
 };
 
-// class Dispatcher {
-// private:
-//   // TODO: use string to identify operator temporarily
-//   std::unordered_map<std::string, OperatorHandler> operatorLookupTable_;
-// };
-
-// Example usage:
-//
-// ```
-// MET_LIBRARY(myops, m) {
-//   // m is a Library; methods on it will define
-//   // operators in the myops namespace
-//   m.def("add", add_impl);
-// }
-// ```
-// #define MET_LIBRARY(ns, m)
-///
-/// TORCH_LIBRARY_IMPL(myops, CPU, m) {
-///   // m is a torch::Library; methods on it will define
-///   // CPU implementations of operators in the myops namespace.
-///   // It is NOT valid to call torch::Library::def()
-///   // in this context.
-///   m.impl("add", add_cpu_impl);
-/// }
-
 // TODO: using operator schema
 // Operator getOperator(const std::string &name);
 const Operator &getOperator(const Schema &name);
@@ -183,6 +152,8 @@ const Operator &getOperator(const Schema &name);
 template <typename Func>
 const TypedOperator<Func> &getTypedOperator(const Schema &name) {
   const Operator &op = getOperator(name);
+  // FIXME: not sure if there's better solution for this, but get type info
+  // at runtime is a headache
   return *static_cast<const TypedOperator<Func> *>(&op);
 }
 
@@ -194,7 +165,7 @@ OperatorRegistry &operatorRegistry();
     using schema = sig;                                                        \
     using ptr_schema = schema *;                                               \
   };                                                                           \
-  auto operator##_backend = operatorRegistry()                                 \
+  auto operator_##name##_backend = operatorRegistry()                                 \
       .registerOperator<sig>(#name)                                            \
       .registerKernel(DispatchKey::backend,                                    \
                       reinterpret_cast<void *>(&kernel));
