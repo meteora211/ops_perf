@@ -32,6 +32,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 
 add_subdirectory(src)
-# add_subdirectory(temp_source)
 add_subdirectory(tests)
 add_subdirectory(example)
+add_subdirectory(cuda_test)
