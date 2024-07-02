@@ -36,8 +36,6 @@ torch::Tensor blur(torch::Tensor image, int kernel_size) {
 
   auto result = torch::empty_like(image);
 
-  // NOTE: threadIdx.z set to channel size to let single pixel be handled inside a block.
-  // If blockIdx.z set to channel size, the pixel is handled on different block which is wrong.
   dim3 thread_per_block(16, 16, 3);
   dim3 block_per_grid(cdiv(width, 16), cdiv(height, 16));
 
