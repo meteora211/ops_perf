@@ -7,7 +7,7 @@ __global__ void blurKernel(unsigned char* Pin, unsigned char* Pout, int width, i
   int channel = threadIdx.z;
 
   int pad = (kernel_size + 1) / 2;
-  float value = 0.0;
+  int value = 0;
   int cnt = 0;
   int offset = width * height * channel;
   if (col < width && row < height) {
@@ -19,7 +19,7 @@ __global__ void blurKernel(unsigned char* Pin, unsigned char* Pout, int width, i
         ++cnt;
       }
     }
-    Pout[offset + row * width + col] = value / cnt;
+    Pout[offset + row * width + col] = (unsigned char)(value / cnt);
   }
 }
 
