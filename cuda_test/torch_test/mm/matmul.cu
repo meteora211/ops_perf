@@ -21,15 +21,22 @@ __global__ void matmulSharedKernel(float* M, float* N, float* P, int width) {
   int col = blockIdx.x * blockDim.x + threadIdx.x;
 
   float value = 0.0;
-  if (row < width && col < width) {
-    for (int k = 0; k < width; k += TILE_WIDTH) {
-
-      for (int inner = 0; inner < TILE_WIDTH; ++inner) {
-        value = tileM[][inner] * tileN[inner][];
-
-      }
-
+  for (int k = 0; k < width; k += TILE_WIDTH) {
+    // TODO: more conditions
+    if (row < width) {
+      tileM[threadIdx.y][threadIdx.x] = M[row * width + (k + threadIdx.x)];
     }
+    if (col < width) {
+      tileN[threadIdx.y][threadIdx.x] = N[(k + threadIdx.y) * width + col];
+    }
+    __syncthreads();
+    for (int inner = 0; inner < TILE_WIDTH; ++inner) {
+      value += tileM[threadIdx.y][inner] * tileN[inner][threadIdx.x];
+    }
+    __syncthreads();
+
+  }
+  if (row < width && col < width) {
     P[row * width + col] = value;
   }
 }
