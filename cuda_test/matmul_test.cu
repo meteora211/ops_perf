@@ -9,6 +9,7 @@
 #include "utils.h"
 #define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
 #define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
+#define FETCH_FLOAT4(pointer) (reinterpret_cast<float4 *>(&(pointer))[0])
 
 // #define BLOCK_SIZE 32
 constexpr int BLOCK_SIZE = 32;
@@ -359,8 +360,8 @@ __global__ void matmulVectorize(float *A, float *B, float *C, int M, int N,
   for (int k = 0; k < K; k += BK) {
     for (int row_stride_idx = 0; row_stride_idx < BM;
          row_stride_idx += rowStrideShareA) {
-      float4 tmp = reinterpret_cast<float4 *>(
-          &A[(shareARow + row_stride_idx) * K + shareACol * 4])[0];
+      float4 tmp =
+          FETCH_FLOAT4(A[(shareARow + row_stride_idx) * K + shareACol * 4]);
       shareA[(shareACol * 4 + 0) * BM + (shareARow + row_stride_idx)] = tmp.x;
       shareA[(shareACol * 4 + 1) * BM + (shareARow + row_stride_idx)] = tmp.y;
       shareA[(shareACol * 4 + 2) * BM + (shareARow + row_stride_idx)] = tmp.z;
@@ -368,10 +369,8 @@ __global__ void matmulVectorize(float *A, float *B, float *C, int M, int N,
     }
     for (int row_stride_idx = 0; row_stride_idx < BK;
          row_stride_idx += rowStrideShareB) {
-      reinterpret_cast<float4 *>(
-          &shareB[(shareBRow + row_stride_idx) * BN + shareBCol * 4])[0] =
-          reinterpret_cast<float4 *>(
-              &B[(shareBRow + row_stride_idx) * N + shareBCol * 4])[0];
+      FETCH_FLOAT4(shareB[(shareBRow + row_stride_idx) * BN + shareBCol * 4]) =
+          FETCH_FLOAT4(B[(shareBRow + row_stride_idx) * N + shareBCol * 4]);
     }
 
     A += BK;
@@ -381,10 +380,14 @@ __global__ void matmulVectorize(float *A, float *B, float *C, int M, int N,
 
     for (int inner = 0; inner < BK; ++inner) {
       for (int t_row = 0; t_row < TM; ++t_row) {
-        regA[t_row] = shareA[inner * BM + (threadRow * TM + t_row)];
+        // regA[t_row] = shareA[inner * BM + (threadRow * TM + t_row)];
+        FETCH_FLOAT4(regA[t_row]) =
+            FETCH_FLOAT4(shareA[inner * BM + (threadRow * TM + t_row)]);
       }
       for (int t_col = 0; t_col < TN; ++t_col) {
-        regB[t_col] = shareB[inner * BN + (threadCol * TN + t_col)];
+        // regB[t_col] = shareB[inner * BN + (threadCol * TN + t_col)];
+        FETCH_FLOAT4(regB[t_col]) =
+            FETCH_FLOAT4(shareB[inner * BN + (threadCol * TN + t_col)]);
       }
       for (int t_row = 0; t_row < TM; ++t_row) {
         for (int t_col = 0; t_col < TN; ++t_col) {
@@ -397,9 +400,20 @@ __global__ void matmulVectorize(float *A, float *B, float *C, int M, int N,
   }
 
   for (int t_row = 0; t_row < TM; ++t_row) {
-    for (int t_col = 0; t_col < TN; ++t_col) {
-      C[(threadRow * TM + t_row) * N + threadCol * TN + t_col] =
-          threadRes[t_row * TN + t_col];
+    // for (int t_col = 0; t_col < TN; ++t_col) {
+    //   C[(threadRow * TM + t_row) * N + threadCol * TN + t_col] =
+    //       threadRes[t_row * TN + t_col];
+    // }
+    for (int t_col = 0; t_col < TN; t_col += 4) {
+      float4 tmp = FETCH_FLOAT4(
+          C[(threadRow * TM + t_row) * N + threadCol * TN + t_col]);
+      tmp.x = threadRes[t_row * TN + t_col + 0];
+      tmp.y = threadRes[t_row * TN + t_col + 1];
+      tmp.z = threadRes[t_row * TN + t_col + 2];
+      tmp.w = threadRes[t_row * TN + t_col + 3];
+      // XXX: needs to set back
+      FETCH_FLOAT4(C[(threadRow * TM + t_row) * N + threadCol * TN + t_col]) =
+          tmp;
     }
   }
 }
@@ -409,6 +423,7 @@ int main() {
   const int iteration = 50;
   std::vector<int> SIZES = {128, 256, 512, 1024, 2048, 4096};
   // std::vector<int> SIZES = {4096};
+  // std::vector<int> SIZES = {512};
 
   CudaDeviceInfo();
 
