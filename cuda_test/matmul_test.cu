@@ -482,28 +482,26 @@ __global__ void __launch_bounds__(NUM_THREADS)
 
     for (int inner = 0; inner < BK; ++inner) {
       for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
-        for (int t_row = 0; t_row < TM; ++t_row) {
-          // FETCH_FLOAT4(regA[wm_iter][t_row]) =
-          //     FETCH_FLOAT4(shareA[inner * BM + (threadRow * TM + t_row)]);
-          regA[wm_iter * TM + t_row] =
-              shareA[inner * BM +
-                     (wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row)];
+        for (int t_row = 0; t_row < TM; t_row += 4) {
+          // XXX: TM is N times of 4
+          FETCH_FLOAT4(regA[wm_iter * TM + t_row]) =
+              FETCH_FLOAT4(shareA[inner * BM +
+                     (wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row)]);
         }
       }
       for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
-        for (int t_col = 0; t_col < TN; ++t_col) {
-          // FETCH_FLOAT4(regB[wn_iter][t_col]) =
-          //     FETCH_FLOAT4(shareB[inner * BN + (threadCol * TN + t_col)]);
-          regB[wn_iter * TN + t_col] =
-              shareB[inner * BN +
-                     (wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col)];
+        for (int t_col = 0; t_col < TN; t_col += 4) {
+          // XXX: TN is N times of 4
+          FETCH_FLOAT4(regB[wn_iter * TN + t_col]) =
+              FETCH_FLOAT4(shareB[inner * BN +
+                     (wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col)]);
         }
       }
       for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
         for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
           for (int t_row = 0; t_row < TM; ++t_row) {
             for (int t_col = 0; t_col < TN; ++t_col) {
-              threadRes[(wm_iter * TM + t_row) * TN + (wn_iter * TN + t_col)] +=
+              threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col)] +=
                   regA[wm_iter * TM + t_row] * regB[wn_iter * TN + t_col];
             }
           }
@@ -517,10 +515,22 @@ __global__ void __launch_bounds__(NUM_THREADS)
   for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
     for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
       for (int t_row = 0; t_row < TM; ++t_row) {
-        for (int t_col = 0; t_col < TN; ++t_col) {
-          C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
-            wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col] =
-              threadRes[(wm_iter * TM + t_row) * TN + (wn_iter * TN + t_col)];
+
+        // for (int t_col = 0; t_col < TN; ++t_col) {
+        //   C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+        //     wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col] =
+        //       threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col)];
+        // }
+
+        for (int t_col = 0; t_col < TN; t_col += 4) {
+          float4 tmp = FETCH_FLOAT4(C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+            wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]);
+          tmp.x = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 0)];
+          tmp.y = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 1)];
+          tmp.z = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 2)];
+          tmp.w = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 3)];
+          FETCH_FLOAT4(C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+            wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]) = tmp;
         }
       }
     }
@@ -528,11 +538,11 @@ __global__ void __launch_bounds__(NUM_THREADS)
 }
 
 int main() {
-  const bool checkResult = true;
+  const bool checkResult = false;
   const int iteration = 50;
-  // std::vector<int> SIZES = {128, 256, 512, 1024, 2048, 4096};
+  std::vector<int> SIZES = {128, 256, 512, 1024, 2048, 4096};
   // std::vector<int> SIZES = {4096};
-  std::vector<int> SIZES = {512};
+  // std::vector<int> SIZES = {512};
 
   CudaDeviceInfo();
 
@@ -559,86 +569,86 @@ int main() {
     cudaMemcpy(dA, hA, M * K * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(dB, hB, K * N * sizeof(float), cudaMemcpyHostToDevice);
 
-    // {
-    //   CUProfiler profiler("naive", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmulNaive<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    // }
-    // {
-    //   CUProfiler profiler("global coalescing", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmulGlobalCoalesc<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M,
-    //     N,
-    //                                                           K);
-    // }
-    // {
-    //   CUProfiler profiler("shared mem", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmulShared<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    // }
-    // {
-    //   CUProfiler profiler("bank opt", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmulBankOpt<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    // }
-    // {
-    //   CUProfiler profiler("thread coarsening", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmulThreadCoarsening<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC,
-    //     M,
-    //                                                              N, K);
-    // }
-    // {
-    //   const uint BM = 64;
-    //   const uint BN = 64;
-    //   const uint BK = 8;
-    //   const uint TM = 8;
-    //   dim3 threadPerBlock(BN * BM / TM);
-    //   // dim3 blockPerGrid((N + BN - 1) / BN, (M + BM - 1) / BM);
-    //   dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
-    //   matmul1DBlockTiling<BM, BN, BK, TM>
-    //       <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    //   CUProfiler profiler("1d tiling", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmul1DBlockTiling<BM, BN, BK, TM>
-    //         <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    // }
-    // {
-    //   const uint BM = 128;
-    //   const uint BN = 128;
-    //   // const uint BM = 64;
-    //   // const uint BN = 64;
-    //   const uint BK = 8;
-    //   const uint TM = 8;
-    //   const uint TN = 8;
-    //   dim3 threadPerBlock(BN * BM / (TM * TN));
-    //   // dim3 blockPerGrid((N + BN - 1) / BN, (M + BM - 1) / BM);
-    //   dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
-    //   matmul2DBlockTiling<BM, BN, BK, TM, TN>
-    //       <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    //   CUProfiler profiler("2d tiling", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmul2DBlockTiling<BM, BN, BK, TM, TN>
-    //         <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    // }
-    // {
-    //   // const uint BM = 64;
-    //   // const uint BN = 64;
-    //   const uint BM = 128;
-    //   const uint BN = 128;
-    //   const uint BK = 8;
-    //   const uint TM = 8;
-    //   const uint TN = 8;
-    //   dim3 threadPerBlock(BN * BM / (TM * TN));
-    //   // dim3 blockPerGrid((N + BN - 1) / BN, (M + BM - 1) / BM);
-    //   dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
-    //   matmulVectorize<BM, BN, BK, TM, TN>
-    //       <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    //   CUProfiler profiler("vectorize", iteration, flops);
-    //   for (int i = 0; i < iteration; ++i)
-    //     matmulVectorize<BM, BN, BK, TM, TN>
-    //         <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-    // }
+    {
+      CUProfiler profiler("naive", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulNaive<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
+    {
+      CUProfiler profiler("global coalescing", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulGlobalCoalesc<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M,
+        N,
+                                                              K);
+    }
+    {
+      CUProfiler profiler("shared mem", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulShared<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
+    {
+      CUProfiler profiler("bank opt", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulBankOpt<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
+    {
+      CUProfiler profiler("thread coarsening", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulThreadCoarsening<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC,
+        M,
+                                                                 N, K);
+    }
+    {
+      const uint BM = 64;
+      const uint BN = 64;
+      const uint BK = 8;
+      const uint TM = 8;
+      dim3 threadPerBlock(BN * BM / TM);
+      // dim3 blockPerGrid((N + BN - 1) / BN, (M + BM - 1) / BM);
+      dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+      matmul1DBlockTiling<BM, BN, BK, TM>
+          <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+      CUProfiler profiler("1d tiling", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmul1DBlockTiling<BM, BN, BK, TM>
+            <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
+    {
+      const uint BM = 128;
+      const uint BN = 128;
+      // const uint BM = 64;
+      // const uint BN = 64;
+      const uint BK = 8;
+      const uint TM = 8;
+      const uint TN = 8;
+      dim3 threadPerBlock(BN * BM / (TM * TN));
+      // dim3 blockPerGrid((N + BN - 1) / BN, (M + BM - 1) / BM);
+      dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+      matmul2DBlockTiling<BM, BN, BK, TM, TN>
+          <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+      CUProfiler profiler("2d tiling", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmul2DBlockTiling<BM, BN, BK, TM, TN>
+            <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
+    {
+      // const uint BM = 64;
+      // const uint BN = 64;
+      const uint BM = 128;
+      const uint BN = 128;
+      const uint BK = 8;
+      const uint TM = 8;
+      const uint TN = 8;
+      dim3 threadPerBlock(BN * BM / (TM * TN));
+      // dim3 blockPerGrid((N + BN - 1) / BN, (M + BM - 1) / BM);
+      dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+      matmulVectorize<BM, BN, BK, TM, TN>
+          <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+      CUProfiler profiler("vectorize", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulVectorize<BM, BN, BK, TM, TN>
+            <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
     {
       // const uint BM = 64;
       // const uint BN = 64;
@@ -651,11 +661,12 @@ int main() {
       const uint TM = 8;
       const uint TN = 4;
       const uint WMITER = 1;
+      // const uint WNITER = 4;
       dim3 threadPerBlock(NUM_THREADS);
       dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
       matmulWrapTile<BM, BN, BK, WM, WN, TM, TN, WMITER, NUM_THREADS>
           <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
-      CUProfiler profiler("vectorize", iteration, flops);
+      CUProfiler profiler("wrap tile", iteration, flops);
       for (int i = 0; i < iteration; ++i)
         matmulWrapTile<BM, BN, BK, WM, WN, TM, TN, WMITER, NUM_THREADS>
             <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
