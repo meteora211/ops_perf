@@ -3,6 +3,7 @@ function(CompileCUDA SOURCE_FILES)
   foreach(source_file ${SOURCE_FILES})
     get_filename_component(executable_name ${source_file} NAME_WE)
     add_executable(${executable_name} ${source_file})
+    target_link_libraries(${executable_name} PRIVATE cudnn cublas)
     # XXX: CUDA_SEPARABLE_COMPILATION cause significant perf drawback
     # set_target_properties(${executable_name} PROPERTIES
     #     CUDA_SEPARABLE_COMPILATION ON

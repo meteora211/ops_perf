@@ -5,6 +5,8 @@
 #include <vector>
 
 #include <sys/time.h>
+#include <cublas_v2.h>
+#include <cuda_runtime.h>
 
 #include "utils.h"
 #define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
@@ -40,6 +42,28 @@ void matmulBase(float *lhs, float *rhs, float *res, int M, int N, int K) {
       res[i * N + j] = sum;
     }
   }
+}
+
+void matmulCublas(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
+  cublasHandle_t cublas_handle;
+  cublasCreate(&cublas_handle);
+  float cublas_alpha = 1.0;
+  float cublas_beta = 0;
+
+  //https://docs.nvidia.com/cuda/cublas/index.html?highlight=cublasSgemm#cublas-t-gemm
+  cublasSgemm(cublas_handle,
+              CUBLAS_OP_N,
+              CUBLAS_OP_N,
+              // TODO: not sure why M/N/K got wrong result
+              // M, N, K,
+              N, M, K,
+              &cublas_alpha,
+              rhs, N,
+              lhs, K,
+              &cublas_beta,
+              res, N);
+
+  cublasDestroy(cublas_handle); // destroy CUBLAS context
 }
 
 __global__ void matmulNaive(float *A, float *B, float *C, int M, int N, int K) {
@@ -573,6 +597,11 @@ int main() {
       CUProfiler profiler("naive", iteration, flops);
       for (int i = 0; i < iteration; ++i)
         matmulNaive<<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
+    {
+      CUProfiler profiler("cublas", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulCublas(dA, dB, dC, M, N, K);
     }
     {
       CUProfiler profiler("global coalescing", iteration, flops);
