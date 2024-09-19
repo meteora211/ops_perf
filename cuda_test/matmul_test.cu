@@ -434,8 +434,9 @@ __global__ void __launch_bounds__(NUM_THREADS)
   const int wrapRow = wrapIdx / (BN / WN);
   const int wrapCol = wrapIdx % (BN / WN);
 
-  const int threadRow = threadIdx.x / WSUBN;
-  const int threadCol = threadIdx.x % WSUBN;
+  const int threadIdxPerWrap = threadIdx.x % WRAPSIZE;
+  const int threadRow = threadIdxPerWrap / (WSUBN / TN);
+  const int threadCol = threadIdxPerWrap % (WSUBN / TN);
 
   const int shareARow = threadIdx.x / (BK / 4);
   const int shareACol = threadIdx.x % (BK / 4);
@@ -517,18 +518,8 @@ __global__ void __launch_bounds__(NUM_THREADS)
     for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
       for (int t_row = 0; t_row < TM; ++t_row) {
         for (int t_col = 0; t_col < TN; ++t_col) {
-          // float4 tmp = FETCH_FLOAT4(
-          //     C[(threadRow * TM + t_row) * N + threadCol * TN + t_col]);
-          // tmp.x = threadRes[t_row * TN + t_col + 0];
-          // tmp.y = threadRes[t_row * TN + t_col + 1];
-          // tmp.z = threadRes[t_row * TN + t_col + 2];
-          // tmp.w = threadRes[t_row * TN + t_col + 3];
-          // // XXX: needs to set back
-          // FETCH_FLOAT4(C[(threadRow * TM + t_row) * N + threadCol * TN +
-          // t_col]) =
-          //     tmp;
           C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
-            threadCol * TN + t_col] =
+            wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col] =
               threadRes[(wm_iter * TM + t_row) * TN + (wn_iter * TN + t_col)];
         }
       }
@@ -540,8 +531,8 @@ int main() {
   const bool checkResult = true;
   const int iteration = 50;
   // std::vector<int> SIZES = {128, 256, 512, 1024, 2048, 4096};
-  std::vector<int> SIZES = {4096};
-  // std::vector<int> SIZES = {512};
+  // std::vector<int> SIZES = {4096};
+  std::vector<int> SIZES = {512};
 
   CudaDeviceInfo();
 
