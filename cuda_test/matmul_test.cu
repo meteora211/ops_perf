@@ -4,9 +4,9 @@
 #include <math.h>
 #include <vector>
 
-#include <sys/time.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
+#include <sys/time.h>
 
 #include "utils.h"
 #define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
@@ -44,24 +44,18 @@ void matmulBase(float *lhs, float *rhs, float *res, int M, int N, int K) {
   }
 }
 
-void matmulCublas(const float* lhs, const float* rhs, float* res, int M, int N, int K) {
+void matmulCublas(const float *lhs, const float *rhs, float *res, int M, int N,
+                  int K) {
   cublasHandle_t cublas_handle;
   cublasCreate(&cublas_handle);
   float cublas_alpha = 1.0;
   float cublas_beta = 0;
 
-  //https://docs.nvidia.com/cuda/cublas/index.html?highlight=cublasSgemm#cublas-t-gemm
-  cublasSgemm(cublas_handle,
-              CUBLAS_OP_N,
-              CUBLAS_OP_N,
+  // https://docs.nvidia.com/cuda/cublas/index.html?highlight=cublasSgemm#cublas-t-gemm
+  cublasSgemm(cublas_handle, CUBLAS_OP_N, CUBLAS_OP_N,
               // TODO: not sure why M/N/K got wrong result
               // M, N, K,
-              N, M, K,
-              &cublas_alpha,
-              rhs, N,
-              lhs, K,
-              &cublas_beta,
-              res, N);
+              N, M, K, &cublas_alpha, rhs, N, lhs, K, &cublas_beta, res, N);
 
   cublasDestroy(cublas_handle); // destroy CUBLAS context
 }
@@ -479,9 +473,8 @@ __global__ void __launch_bounds__(NUM_THREADS)
   B += bCol * BN;
   C += bRow * BM * N + bCol * BN;
 
-  const uint totalResultsBlocktile = BM * BN;
-  const uint rowStrideShareA = NUM_THREADS / (BK / 4);
-  const uint rowStrideShareB = NUM_THREADS / (BN / 4);
+  constexpr uint rowStrideShareA = NUM_THREADS / (BK / 4);
+  constexpr uint rowStrideShareB = NUM_THREADS / (BN / 4);
 
   for (int k = 0; k < K; k += BK) {
     for (int row_stride_idx = 0; row_stride_idx < BM;
@@ -509,23 +502,24 @@ __global__ void __launch_bounds__(NUM_THREADS)
         for (int t_row = 0; t_row < TM; t_row += 4) {
           // XXX: TM is N times of 4
           FETCH_FLOAT4(regA[wm_iter * TM + t_row]) =
-              FETCH_FLOAT4(shareA[inner * BM +
-                     (wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row)]);
+              FETCH_FLOAT4(shareA[inner * BM + (wrapRow * WM + wm_iter * WSUBM +
+                                                threadRow * TM + t_row)]);
         }
       }
       for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
         for (int t_col = 0; t_col < TN; t_col += 4) {
           // XXX: TN is N times of 4
           FETCH_FLOAT4(regB[wn_iter * TN + t_col]) =
-              FETCH_FLOAT4(shareB[inner * BN +
-                     (wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col)]);
+              FETCH_FLOAT4(shareB[inner * BN + (wrapCol * WN + wn_iter * WSUBN +
+                                                threadCol * TN + t_col)]);
         }
       }
       for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
         for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
           for (int t_row = 0; t_row < TM; ++t_row) {
             for (int t_col = 0; t_col < TN; ++t_col) {
-              threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col)] +=
+              threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                        (wn_iter * TN + t_col)] +=
                   regA[wm_iter * TM + t_row] * regB[wn_iter * TN + t_col];
             }
           }
@@ -543,23 +537,305 @@ __global__ void __launch_bounds__(NUM_THREADS)
         // for (int t_col = 0; t_col < TN; ++t_col) {
         //   C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
         //     wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col] =
-        //       threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col)];
+        //       threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter *
+        //       TN + t_col)];
         // }
 
         for (int t_col = 0; t_col < TN; t_col += 4) {
-          float4 tmp = FETCH_FLOAT4(C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
-            wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]);
-          tmp.x = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 0)];
-          tmp.y = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 1)];
-          tmp.z = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 2)];
-          tmp.w = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) + (wn_iter * TN + t_col + 3)];
-          FETCH_FLOAT4(C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
-            wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]) = tmp;
+          float4 tmp = FETCH_FLOAT4(
+              C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+                wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]);
+          tmp.x = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 0)];
+          tmp.y = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 1)];
+          tmp.z = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 2)];
+          tmp.w = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 3)];
+          FETCH_FLOAT4(
+              C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+                wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]) = tmp;
         }
       }
     }
   }
 }
+
+template <const int BM, const int BN, const int BK, const int rowStrideShareA,
+          const int rowStrideShareB>
+__device__ void processMemory(float *A, float *B, float *shareA, float *shareB,
+                              const int shareARow, const int shareACol,
+                              const int shareBRow, const int shareBCol,
+                              const int N, const int K) {
+  for (int row_stride_idx = 0; row_stride_idx < BM;
+       row_stride_idx += rowStrideShareA) {
+    float4 tmp =
+        FETCH_FLOAT4(A[(shareARow + row_stride_idx) * K + shareACol * 4]);
+    shareA[(shareACol * 4 + 0) * BM + (shareARow + row_stride_idx)] = tmp.x;
+    shareA[(shareACol * 4 + 1) * BM + (shareARow + row_stride_idx)] = tmp.y;
+    shareA[(shareACol * 4 + 2) * BM + (shareARow + row_stride_idx)] = tmp.z;
+    shareA[(shareACol * 4 + 3) * BM + (shareARow + row_stride_idx)] = tmp.w;
+  }
+  for (int row_stride_idx = 0; row_stride_idx < BK;
+       row_stride_idx += rowStrideShareB) {
+    FETCH_FLOAT4(shareB[(shareBRow + row_stride_idx) * BN + shareBCol * 4]) =
+        FETCH_FLOAT4(B[(shareBRow + row_stride_idx) * N + shareBCol * 4]);
+  }
+}
+
+template <const int BM, const int BN, const int BK, const int WM, const int WN,
+          const int TM, const int TN, const int WMITER, const int WNITER, const int WSUBM, const int WSUBN>
+__device__ void processCompute(
+  float* regA,
+  float* regB,
+  float* shareA,
+  float* shareB,
+  float* threadRes,
+  const int wrapRow,
+  const int wrapCol,
+  const int threadRow,
+  const int threadCol
+) {
+    for (int inner = 0; inner < BK; ++inner) {
+      for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
+        for (int t_row = 0; t_row < TM; t_row += 4) {
+          // XXX: TM is N times of 4
+          FETCH_FLOAT4(regA[wm_iter * TM + t_row]) =
+              FETCH_FLOAT4(shareA[inner * BM + (wrapRow * WM + wm_iter * WSUBM +
+                                                threadRow * TM + t_row)]);
+        }
+      }
+      for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
+        for (int t_col = 0; t_col < TN; t_col += 4) {
+          // XXX: TN is N times of 4
+          FETCH_FLOAT4(regB[wn_iter * TN + t_col]) =
+              FETCH_FLOAT4(shareB[inner * BN + (wrapCol * WN + wn_iter * WSUBN +
+                                                threadCol * TN + t_col)]);
+        }
+      }
+      for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
+        for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
+          for (int t_row = 0; t_row < TM; ++t_row) {
+            for (int t_col = 0; t_col < TN; ++t_col) {
+              threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                        (wn_iter * TN + t_col)] +=
+                  regA[wm_iter * TM + t_row] * regB[wn_iter * TN + t_col];
+            }
+          }
+        }
+      }
+    }
+}
+
+template <const int BM, const int BN, const int BK, const int WM, const int WN,
+          const int TM, const int TN, const int WMITER, const int NUM_THREADS>
+__global__ void __launch_bounds__(NUM_THREADS)
+    matmulWrapTileDoubleBuffer(float *A, float *B, float *C, int M, int N,
+                               int K) {
+  const int bRow = blockIdx.y;
+  const int bCol = blockIdx.x;
+
+  constexpr int WNITER = (BM * BN) / (TM * TN * WMITER * NUM_THREADS);
+  constexpr int WSUBM = WM / WMITER;
+  constexpr int WSUBN = WN / WNITER;
+  constexpr int WRAPSIZE = 32;
+
+  const int wrapIdx = threadIdx.x / WRAPSIZE;
+  const int wrapRow = wrapIdx / (BN / WN);
+  const int wrapCol = wrapIdx % (BN / WN);
+
+  const int threadIdxPerWrap = threadIdx.x % WRAPSIZE;
+  const int threadRow = threadIdxPerWrap / (WSUBN / TN);
+  const int threadCol = threadIdxPerWrap % (WSUBN / TN);
+
+  const int shareARow = (threadIdx.x % (NUM_THREADS / 2)) / (BK / 4);
+  const int shareACol = (threadIdx.x % (NUM_THREADS / 2)) % (BK / 4);
+
+  const int shareBRow = (threadIdx.x % (NUM_THREADS / 2)) / (BN / 4);
+  const int shareBCol = (threadIdx.x % (NUM_THREADS / 2)) % (BN / 4);
+
+  float threadRes[TM * TN * WMITER * WNITER] = {0.0};
+  float regA[TM * WMITER] = {0.0};
+  float regB[TN * WNITER] = {0.0};
+
+  __shared__ float shareA[2 * BM * BK];
+  __shared__ float shareB[2 * BK * BN];
+
+  A += bRow * BM * K;
+  B += bCol * BN;
+  C += bRow * BM * N + bCol * BN;
+
+  const uint totalResultsBlocktile = BM * BN;
+  constexpr uint rowStrideShareA = (NUM_THREADS / 2) / (BK / 4);
+  constexpr uint rowStrideShareB = (NUM_THREADS / 2) / (BN / 4);
+  int bufferIdx = threadIdx.x / (NUM_THREADS / 2);
+
+  if (bufferIdx == 0) {
+    processMemory<BM, BN, BK, rowStrideShareA, rowStrideShareB>(
+        A, B, shareA, shareB,
+        shareARow, shareACol, shareBRow, shareBCol, N, K);
+  }
+  __syncthreads();
+  for (int k = 0; k < K; k += 2 * BK) {
+    if (bufferIdx == 0) {
+      processCompute<BM, BN, BK, WM, WN, TM, TN, WMITER, WNITER, WSUBM, WSUBN>(
+        regA, regB, shareA, shareB, threadRes, wrapRow, wrapCol, threadRow, threadCol
+      );
+      __syncthreads();
+
+      if (k + BK < K) {
+        processCompute<BM, BN, BK, WM, WN, TM, TN, WMITER, WNITER, WSUBM, WSUBN>(
+          regA, regB, shareA + BM * BK, shareB + BK * BN, threadRes, wrapRow, wrapCol, threadRow, threadCol
+        );
+      }
+      __syncthreads();
+
+      if (k + 2*BK < K) {
+        processMemory<BM, BN, BK, rowStrideShareA, rowStrideShareB>(
+            A + 2 * BK, B + 2 * BK * N, shareA, shareB,
+            shareARow, shareACol, shareBRow, shareBCol, N, K);
+
+      }
+
+    } else {
+      if (k + BK < K) {
+        processMemory<BM, BN, BK, rowStrideShareA, rowStrideShareB>(
+            A + BK, B + BK * N, shareA + BM * BK, shareB + BK * BN,
+            shareARow, shareACol, shareBRow, shareBCol, N, K);
+      }
+      __syncthreads();
+
+      processCompute<BM, BN, BK, WM, WN, TM, TN, WMITER, WNITER, WSUBM, WSUBN>(
+        regA, regB, shareA, shareB, threadRes, wrapRow, wrapCol, threadRow, threadCol
+      );
+      __syncthreads();
+
+      if (k + BK < K) {
+        processCompute<BM, BN, BK, WM, WN, TM, TN, WMITER, WNITER, WSUBM, WSUBN>(
+          regA, regB, shareA + BM * BK, shareB + BK * BN, threadRes, wrapRow, wrapCol, threadRow, threadCol
+        );
+      }
+    }
+    __syncthreads();
+    A += 2 * BK;
+    B += 2 * BK * N;
+  }
+
+  for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
+    for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
+      for (int t_row = 0; t_row < TM; ++t_row) {
+        for (int t_col = 0; t_col < TN; t_col += 4) {
+          float4 tmp = FETCH_FLOAT4(
+              C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+                wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]);
+          tmp.x = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 0)];
+          tmp.y = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 1)];
+          tmp.z = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 2)];
+          tmp.w = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 3)];
+          FETCH_FLOAT4(
+              C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+                wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]) = tmp;
+        }
+      }
+    }
+  }
+}
+
+template <const int BM, const int BN, const int BK, const int WM, const int WN,
+          const int TM, const int TN, const int WMITER, const int NUM_THREADS>
+__global__ void __launch_bounds__(NUM_THREADS)
+    matmulWrapTileDoubleBufferV2(float *A, float *B, float *C, int M, int N,
+                                 int K) {
+  const int bRow = blockIdx.y;
+  const int bCol = blockIdx.x;
+
+  constexpr int WNITER = (BM * BN) / (TM * TN * WMITER * NUM_THREADS);
+  constexpr int WSUBM = WM / WMITER;
+  constexpr int WSUBN = WN / WNITER;
+  constexpr int WRAPSIZE = 32;
+
+  const int wrapIdx = threadIdx.x / WRAPSIZE;
+  const int wrapRow = wrapIdx / (BN / WN);
+  const int wrapCol = wrapIdx % (BN / WN);
+
+  const int threadIdxPerWrap = threadIdx.x % WRAPSIZE;
+  const int threadRow = threadIdxPerWrap / (WSUBN / TN);
+  const int threadCol = threadIdxPerWrap % (WSUBN / TN);
+
+  const int shareARow = threadIdx.x / (BK / 4);
+  const int shareACol = threadIdx.x % (BK / 4);
+
+  const int shareBRow = threadIdx.x / (BN / 4);
+  const int shareBCol = threadIdx.x % (BN / 4);
+
+  float threadRes[TM * TN * WMITER * WNITER] = {0.0};
+  float regA[TM * WMITER] = {0.0};
+  float regB[TN * WNITER] = {0.0};
+
+  __shared__ float shareA[2 * BM * BK];
+  __shared__ float shareB[2 * BK * BN];
+
+  A += bRow * BM * K;
+  B += bCol * BN;
+  C += bRow * BM * N + bCol * BN;
+
+  const uint totalResultsBlocktile = BM * BN;
+  constexpr uint rowStrideShareA = NUM_THREADS / (BK / 4);
+  constexpr uint rowStrideShareB = NUM_THREADS / (BN / 4);
+
+  processMemory<BM, BN, BK, rowStrideShareA, rowStrideShareB>(
+      A, B, shareA, shareB,
+      shareARow, shareACol, shareBRow, shareBCol, N, K);
+  __syncthreads();
+  int write_index = 1;
+  for (int k = 0; k < K; k += BK) {
+    int load_index = write_index ^ 1;
+    processCompute<BM, BN, BK, WM, WN, TM, TN, WMITER, WNITER, WSUBM, WSUBN>(
+      regA, regB, shareA + load_index * BM * BK, shareB + load_index * BK * BN,
+      threadRes, wrapRow, wrapCol, threadRow, threadCol
+    );
+
+    if (k + BK < K) {
+      processMemory<BM, BN, BK, rowStrideShareA, rowStrideShareB>(
+          A + BK, B + BK * N, shareA + write_index * BM * BK, shareB + write_index * BK * BN,
+          shareARow, shareACol, shareBRow, shareBCol, N, K);
+    }
+
+    __syncthreads();
+    A += BK;
+    B += BK * N;
+    write_index ^= 1;
+  }
+
+  for (int wm_iter = 0; wm_iter < WMITER; ++wm_iter) {
+    for (int wn_iter = 0; wn_iter < WNITER; ++wn_iter) {
+      for (int t_row = 0; t_row < TM; ++t_row) {
+        for (int t_col = 0; t_col < TN; t_col += 4) {
+          float4 tmp = FETCH_FLOAT4(
+              C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+                wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]);
+          tmp.x = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 0)];
+          tmp.y = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 1)];
+          tmp.z = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 2)];
+          tmp.w = threadRes[(wm_iter * TM + t_row) * (WNITER * TN) +
+                            (wn_iter * TN + t_col + 3)];
+          FETCH_FLOAT4(
+              C[(wrapRow * WM + wm_iter * WSUBM + threadRow * TM + t_row) * N +
+                wrapCol * WN + wn_iter * WSUBN + threadCol * TN + t_col]) = tmp;
+        }
+      }
+    }
+  }
+}
+
 
 int main() {
   const bool checkResult = false;
@@ -698,6 +974,28 @@ int main() {
       CUProfiler profiler("wrap tile", iteration, flops);
       for (int i = 0; i < iteration; ++i)
         matmulWrapTile<BM, BN, BK, WM, WN, TM, TN, WMITER, NUM_THREADS>
+            <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+    }
+    {
+      // const uint BM = 64;
+      // const uint BN = 64;
+      const uint NUM_THREADS = 128;
+      const uint BM = 128;
+      const uint BN = 128;
+      const uint BK = 16;
+      const uint WM = 64;
+      const uint WN = 64;
+      const uint TM = 8;
+      const uint TN = 4;
+      const uint WMITER = 1;
+      // const uint WNITER = 4;
+      dim3 threadPerBlock(NUM_THREADS);
+      dim3 blockPerGrid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+      matmulWrapTileDoubleBufferV2<BM, BN, BK, WM, WN, TM, TN, WMITER, NUM_THREADS>
+          <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
+      CUProfiler profiler("wrap tile double buffer", iteration, flops);
+      for (int i = 0; i < iteration; ++i)
+        matmulWrapTileDoubleBufferV2<BM, BN, BK, WM, WN, TM, TN, WMITER, NUM_THREADS>
             <<<blockPerGrid, threadPerBlock>>>(dA, dB, dC, M, N, K);
     }
     cudaMemcpy(hC, dC, M * N * sizeof(float), cudaMemcpyDeviceToHost);

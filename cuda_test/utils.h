@@ -6,6 +6,7 @@
 #include <chrono>
 #include <math.h>
 #include <string>
+#include <sys/time.h>
 #include <cuda_runtime.h>
 
 
@@ -87,9 +88,19 @@ struct CUProfiler {
 };
 
 void fullfill_rand(float* input, int nelm) {
-  std::srand(std::time(nullptr)); // use current time as seed for random generator
-  for (int i = 0; i < nelm; ++i) {
-    input[i] = std::rand() / static_cast<float>(RAND_MAX);
+  // std::srand(std::time(nullptr)); // use current time as seed for random generator
+  // for (int i = 0; i < nelm; ++i) {
+  //   input[i] = std::rand() / static_cast<float>(RAND_MAX);
+  // }
+  // NOTE: Use gettimeofday instead of srand((unsigned)time(NULL)); the time
+  // precision is too low and the same random number is generated.
+  struct timeval time {};
+  gettimeofday(&time, nullptr);
+  srand(time.tv_usec);
+  for (int i = 0; i < nelm; i++) {
+    float tmp = (float)(rand() % 5) + 0.01 * (rand() % 5);
+    tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.);
+    input[i] = tmp;
   }
 }
 
@@ -108,8 +119,8 @@ bool matrixChecker(float* res, float* expect, int M, int N) {
       double rel_err = abs_err / abs_val / dot_length;
 
       if (rel_err > eps) {
-          std::cout << "ERROR in: " << i << " , " << j << " Value: " << res[index] << " " << expect[index] << std::endl;
-          correct = false;
+        std::cout << "ERROR in: " << i << " , " << j << " Value: " << res[index] << " " << expect[index] << std::endl;
+        correct = false;
       }
     }
   }
