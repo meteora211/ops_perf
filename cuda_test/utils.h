@@ -10,6 +10,11 @@
 #include <cuda_runtime.h>
 
 
+void CudaCacheInfo() {
+  cudaFuncCache cacheConfig;
+  cudaDeviceGetCacheConfig(&cacheConfig);
+}
+
 void CudaDeviceInfo() {
   int deviceId;
 
