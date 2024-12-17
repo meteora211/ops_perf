@@ -110,10 +110,13 @@ __global__ void conv2d_opt(float* input, float* kernel, float* res,
                              const int batch_size, const int output_channel, const int input_channel,
                              const int pad_h, const int pad_w, const int stride_h, const int stride_w,
                              const int res_h, const int res_w, const int OUTTILE) {
-  int row = blockIdx.y * OUTTILE + threadIdx.y;
-  int col = blockIdx.x * OUTTILE + threadIdx.x;
-  int tile_pad_h = (blockIdx.y == 0 || blockIdx.y == blockDim.y) ? pad_h : 0;
-  int tile_pad_w = (blockIdx.x == 0 || blockIdx.x == blockDim.x) ? pad_w : 0;
+  int row = blockIdx.y * OUTTILE * stride_h + threadIdx.y; // row index for input data
+  int col = blockIdx.x * OUTTILE * stride_w + threadIdx.x; // col index for input data
+  int out_row = blockIdx.y * OUTTILE + threadIdx.y; // row index for output data
+  int out_col = blockIdx.x * OUTTILE + threadIdx.x; // col index for output data
+  // FIXME: padding needs to recalculate OUTTILE size and it differ on different block.
+  // int tile_pad_h = (blockIdx.y == 0 || blockIdx.y == blockDim.y) ? pad_h : 0;
+  // int tile_pad_w = (blockIdx.x == 0 || blockIdx.x == blockDim.x) ? pad_w : 0;
   __shared__ float inTile[INTILE][INTILE];
 
   for (int b = 0; b < batch_size; ++b) {
@@ -123,6 +126,7 @@ __global__ void conv2d_opt(float* input, float* kernel, float* res,
         float* input_offset = input + b * input_channel * height * width + ic * height * width;
         float* kernel_offset = kernel + oc * input_channel * kernel_h * kernel_w + ic * kernel_h * kernel_w;
         float sum = 0.0;
+        // float sum = row + float(col) / 10.0;
 
         if (row >= 0 && row < height && col >= 0 && col < width) {
           inTile[threadIdx.y][threadIdx.x] = input_offset[row * width + col];
@@ -133,19 +137,22 @@ __global__ void conv2d_opt(float* input, float* kernel, float* res,
 
 
         // only activate OUTTILE*OUTTILE threads
-        if (threadIdx.x < OUTTILE && threadIdx.y < OUTTILE)  {
+        if (threadIdx.x < OUTTILE && threadIdx.y < OUTTILE && out_row < res_h && out_col < res_w)  {
           for (int ki = 0; ki < kernel_h; ++ki) {
             for (int kj = 0; kj < kernel_w; ++kj) {
-              int tileRow = threadIdx.y * stride_h + ki - tile_pad_h;
-              int tileCol = threadIdx.x * stride_w + kj - tile_pad_w;
-              if (row < 0 || row >= height || col < 0 || col >= width || tileRow < 0 || tileRow >= INTILE || tileCol < 0 || tileCol >= INTILE) continue;
+              // FIXME: skip padding support
+              // int tileRow = threadIdx.y * stride_h + ki - tile_pad_h;
+              // int tileCol = threadIdx.x * stride_w + kj - tile_pad_w;
+              int tileRow = threadIdx.y * stride_h + ki;
+              int tileCol = threadIdx.x * stride_w + kj;
+              if (tileRow < 0 || tileRow >= INTILE || tileCol < 0 || tileCol >= INTILE) continue;
               sum += inTile[tileRow][tileCol] * kernel_offset[ki * kernel_w + kj];
+              // sum = row + float(col) / 10;
             }
           }
+          res_offset[out_row * res_w + out_col] += sum;
         }
 
-
-        res_offset[row * res_w + col] += sum;
         __syncthreads();
       }
     }
@@ -188,9 +195,9 @@ torch::Tensor conv2d(const torch::Tensor& input,
 
   // share memory
   dim3 thread_per_block(INTILE, INTILE);
-  // FIXME: only support height == width
-  int  OUTTILE = (INTILE + 2 * padding[0] - weight_height) / stride[0] + 1;
-  std::cout << "============ OUTTILE============" << OUTTILE << std::endl;
+  // FIXME: only support height == width without padding
+  int  OUTTILE = (INTILE - weight_height) / stride[0] + 1;
+  std::cout << "DEBUG OUTTILE: " << OUTTILE << " res_h: " << output_height << " res_w: " << output_width << std::endl;
   dim3 block_per_grid(cdiv(output_size[input_dim - 2], OUTTILE), cdiv(output_size[input_dim - 1], OUTTILE));
 
   conv2d_opt<<<block_per_grid, thread_per_block>>>(input.data_ptr<float>(), weight.data_ptr<float>(), output.data_ptr<float>(),

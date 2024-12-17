@@ -25,14 +25,14 @@ def main():
     ext = compile_extension()
     
     x = torch.rand(3, 3, 300, 300).float().cuda()
-    w = torch.rand(1, 3, 3, 3).float().cuda()
+    w = torch.rand(1, 3, 4, 4).float().cuda()
 
     stride = [2,2]
-    pad = [1,1]
+    pad = [0,0]
     y = ext.conv2d(x, w, stride, pad)
     print(y)
     y_ref = torch.nn.functional.conv2d(x, w, padding = pad, stride = stride)
-    torch.allclose(y, y_ref, rtol=1e-5, atol=1e-8)
+    assert torch.allclose(y, y_ref, rtol=1e-5, atol=1e-8)
 
 if __name__ == "__main__":
     main()
