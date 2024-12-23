@@ -34,7 +34,7 @@ def compile_extension():
 def main():
     ext = compile_extension()
     
-    x = torch.rand(300).float().cuda()
+    x = torch.rand(3000).float().cuda()
 
     exclusive = True
     y_ref = scan(x, exclusive)
