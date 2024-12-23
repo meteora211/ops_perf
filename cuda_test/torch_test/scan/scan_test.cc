@@ -368,9 +368,6 @@ torch::Tensor scan(const torch::Tensor& input, bool exclusive = false) {
 
   if (numblock > 1) {
     const auto & sum = scan(partial_sum, exclusive);
-    std::cout << sum << std::endl;
-    std::cout << "=============" << std::endl;
-    std::cout << partial_sum << std::endl;
     if (exclusive) {
       // add_kernel<true><<<block_per_grid, thread_per_block>>>(res.data_ptr<float>(), sum.data_ptr<float>());
       add_kernel_coarse<true><<<block_per_grid, thread_per_block>>>(res.data_ptr<float>(), sum.data_ptr<float>());
